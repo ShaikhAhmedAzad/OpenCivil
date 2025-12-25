@@ -26,7 +26,7 @@
             <div class="nav-actions">
                 <a href="https://github.com/ShaikhAhmedAzad/OpenCivil" class="github-link"><i data-lucide="github"></i> GitHub</a>
                 
-                <a href="https://github.com/ShaikhAhmedAzad/OpenCivil/releases/latest" class="btn btn-primary">Download v0.35</a>
+                <a href="https://github.com/ShaikhAhmedAzad/OpenCivil/releases/latest" class="btn btn-primary">Download v0.46</a>
             </div>
         </div>
     </nav>
@@ -117,6 +117,32 @@
                         <img src="images/feature-3.png" alt="Interactive Graphics" class="feature-img">
                     </div>
                 </div>
+
+                <div class="feature-card">
+                    <div class="icon-box purple"><i data-lucide="anchor"></i></div>
+                    <h3>Computed Fixed End Forces</h3>
+                    <p>Automatically calculates fixed-end moments and shears for various load types on beam elements before analysis begins.</p>
+                    <div class="card-image-frame">
+                        <img src="images/feature-4.png" alt="Fixed End Forces" class="feature-img">
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box red"><i data-lucide="crosshair"></i></div>
+                    <h3>Exact Deformation Tracking</h3>
+                    <p>Utilizes high-order shape functions to render precise displacement curves between nodes, accurate right down to the dot.</p>
+                    <div class="card-image-frame">
+                         <img src="images/feature-5.png" alt="Exact Deformation" class="feature-img">
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box cyan"><i data-lucide="clipboard-list"></i></div>
+                    <h3>Detailed Equilibrium Checks</h3>
+                    <p>Get comprehensive reaction summaries for all supports to ensure global stability and verify that ΣF=0 and ΣM=0.</p>
+                    <div class="card-image-frame">
+                         <img src="images/feature-6.png" alt="Equilibrium Checks" class="feature-img">
+                    </div>
+                </div>
+
             </div>
         </div>
     </section>
@@ -279,9 +305,41 @@
         </div>
     </footer>
 
+    <div id="imgModal" class="modal">
+        <span class="close-modal">&times;</span>
+        <img class="modal-content" id="fullImage">
+    </div>
+
     <script>
         lucide.createIcons();
+
+        // --- Lightbox Logic ---
+        const modal = document.getElementById("imgModal");
+        const modalImg = document.getElementById("fullImage");
+        const closeBtn = document.querySelector(".close-modal");
+
+        // Get all images that should be clickable
+        const images = document.querySelectorAll('.app-screenshot, .feature-img, .workflow-img');
+
+        images.forEach(img => {
+            img.onclick = function(){
+                modal.style.display = "block";
+                modalImg.src = this.src;
+            }
+        });
+
+        // Close functions
+        closeBtn.onclick = function() { modal.style.display = "none"; }
+        modal.onclick = function(event) {
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+        }
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "Escape") {
+                modal.style.display = "none";
+            }
+        });
     </script>
 </body>
 </html>
-  
