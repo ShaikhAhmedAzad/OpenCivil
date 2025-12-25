@@ -9,7 +9,7 @@ It provides a **fully transparent workspace** where students can model 3D struct
 | 3D Modeling | Analysis Results |
 |:---:|:---:|
 | <img src="images/hero-main.png" width="400"> | <img src="images/feature-3.png" width="400"> |
-| *Real-time 3D Extrusions* | *Deformed Shape & Diagrams* |
+| *Real-time 3D Extrusions* | *Nodal deformations & Fixed end forces* |
 
 ## Key Features
 
