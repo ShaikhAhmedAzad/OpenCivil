@@ -4,14 +4,14 @@ Open Civil is an open-source, educational structural analysis software designed 
 
 It provides a **fully transparent workspace** where students can model 3D structures, visualize internal forces, and inspect the underlying mathematical matrices (Stiffness, Transformation, etc.) in real-time.
 
-## 📸 Screenshots
+## Screenshots
 
 | 3D Modeling | Analysis Results |
 |:---:|:---:|
 | <img src="images/hero-main.png" width="400"> | <img src="images/feature-3.png" width="400"> |
 | *Real-time 3D Extrusions* | *Deformed Shape & Diagrams* |
 
-## ✨ Key Features
+## Key Features
 
 * **Educational "Glass Box" Engine**:
     * View the raw **12x12 Stiffness Matrix [k]** for any element.
@@ -32,14 +32,14 @@ It provides a **fully transparent workspace** where students can model 3D struct
     * Saves projects as human-readable **JSON (.mf)** files.
     * Easy to parse with Python, MATLAB, or Excel for research.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 * **Language**: Python 3.10+
 * **GUI Framework**: PyQt6
 * **Graphics**: PyOpenGL / PyQtGraph
 * **Math Kernel**: NumPy & SciPy (Sparse Linear Algebra)
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 ### Option 1: Download Installer (Windows)
 
@@ -78,7 +78,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## 📖 Usage Guide
+## Usage Guide
 
 1. **Define Grid**: Start a new model and define your X/Y/Z grid lines.
 2. **Materials & Sections**: Go to Define > Section Properties to create I-beams or Concrete Rectangles.
@@ -97,11 +97,11 @@ This is a student project created for educational purposes. Contributions, bug r
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
-This project is open source and available for educational use.
+This project is open-source and available for educational purposes.
 
-## 👨‍💻 Author
+## Author
 
 **Shaikh Ahmed Azad**  
 Civil Engineering Student | METU  
