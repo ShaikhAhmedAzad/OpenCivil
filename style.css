@@ -81,29 +81,47 @@ h1 { font-size: 4rem; line-height: 1.1; margin-bottom: 24px; letter-spacing: -2p
 
 /* --- Hero Image & Floating UI --- */
 .hero-image-wrapper { position: relative; perspective: 1000px; }
+
+/* Clickable Images */
+.app-screenshot, .feature-img, .workflow-img { 
+    cursor: zoom-in; 
+    transition: transform 0.3s ease;
+}
+
 .window-frame { 
     background: white; padding: 8px; border-radius: 12px; 
     box-shadow: 0 30px 60px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05); 
     transition: transform 0.4s ease;
+    position: relative;
+    z-index: 1;
 }
 .window-frame:hover { transform: rotateY(-2deg) rotateX(2deg); }
 .app-screenshot { width: 100%; border-radius: 8px; display: block; }
 
+/* FIXED MATRIX SPY CARD */
 .floating-card {
-    position: absolute; bottom: -40px; left: -40px; 
-    background: #1e293b; color: #22d3ee;
-    padding: 24px; border-radius: 12px; 
+    position: absolute; 
+    bottom: -20px; 
+    right: -20px; /* Moved to Right */
+    left: auto;   /* Removed Left */
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(8px);
+    color: #22d3ee;
+    padding: 16px; /* Smaller padding */
+    border-radius: 12px; 
     font-family: 'JetBrains Mono', monospace;
     box-shadow: 0 20px 40px rgba(0,0,0,0.4); 
-    width: 320px; border: 1px solid #334155;
+    width: 260px; /* Smaller width */
+    border: 1px solid #334155;
     animation: float 6s ease-in-out infinite;
+    z-index: 10;
 }
 @keyframes float { 0% { transform: translateY(0); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
 
-.card-header { display: flex; justify-content: space-between; margin-bottom: 16px; color: #94a3b8; font-size: 0.8rem; font-weight: 600; }
-.matrix-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; font-size: 0.85rem; }
+.card-header { display: flex; justify-content: space-between; margin-bottom: 12px; color: #94a3b8; font-size: 0.75rem; font-weight: 600; }
+.matrix-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 0.75rem; }
 .num { color: #38bdf8; } .dim { color: #475569; }
-.matrix-label { grid-column: 1/-1; text-align: center; color: #64748b; margin-top: 14px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; }
+.matrix-label { grid-column: 1/-1; text-align: center; color: #64748b; margin-top: 10px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; }
 
 /* --- Workflow Section --- */
 .section-header h2 { font-size: 2.5rem; margin-bottom: 16px; }
@@ -116,19 +134,28 @@ h1 { font-size: 4rem; line-height: 1.1; margin-bottom: 24px; letter-spacing: -2p
 .workflow-img { width: 100%; height: auto; }
 
 /* --- Features Grid --- */
+/* Auto-rows: repeat(3, 1fr) will automatically wrap to the next line */
 .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+
 .feature-card { 
     border: 1px solid #e2e8f0; padding: 32px; border-radius: 16px; 
     background: white; transition: all 0.3s ease; 
+    display: flex; flex-direction: column; /* Ensures image is at bottom */
 }
 .feature-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08); border-color: var(--accent); }
+
+/* Icon Colors */
 .icon-box { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 12px; margin-bottom: 24px; }
 .icon-box.blue { background: #e0f2fe; color: #0284c7; }
 .icon-box.green { background: #dcfce7; color: #166534; }
 .icon-box.orange { background: #ffedd5; color: #ea580c; }
+/* NEW COLORS for 2nd Row */
+.icon-box.purple { background: #f3e8ff; color: #9333ea; }
+.icon-box.red { background: #fee2e2; color: #dc2626; }
+.icon-box.cyan { background: #cffafe; color: #0891b2; }
 
 .feature-card h3 { font-size: 1.25rem; margin-bottom: 12px; color: var(--primary); }
-.feature-card p { font-size: 0.95rem; color: #64748b; }
+.feature-card p { font-size: 0.95rem; color: #64748b; flex-grow: 1; /* Pushes image down */ }
 .card-image-frame { margin-top: 24px; border-radius: 8px; overflow: hidden; border: 1px solid #f1f5f9; }
 .feature-img { width: 100%; height: auto; display: block; transition: transform 0.5s ease; }
 .feature-card:hover .feature-img { transform: scale(1.08); }
@@ -200,13 +227,55 @@ code { font-family: inherit; }
 
 footer { padding: 40px 0; background: white; border-top: 1px solid #f1f5f9; color: #94a3b8; font-size: 0.9rem; }
 
+/* --- LIGHTBOX MODAL --- */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 2000; 
+    padding-top: 50px; 
+    left: 0; top: 0; 
+    width: 100%; height: 100%; 
+    overflow: auto; 
+    background-color: rgba(15, 23, 42, 0.9); 
+    backdrop-filter: blur(5px);
+}
+.modal-content {
+    margin: auto;
+    display: block;
+    width: 80%;
+    max-width: 1000px;
+    border-radius: 8px;
+    box-shadow: 0 0 50px rgba(0,0,0,0.5);
+    animation: zoom 0.3s;
+}
+@keyframes zoom { from {transform:scale(0)} to {transform:scale(1)} }
+
+.close-modal {
+    position: absolute;
+    top: 20px;
+    right: 35px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+    cursor: pointer;
+}
+.close-modal:hover { color: var(--accent); }
+
 /* --- Mobile --- */
+@media (max-width: 900px) {
+     /* Switch to 2 columns on medium screens */
+    .features-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 @media (max-width: 768px) {
     h1 { font-size: 3rem; }
+    /* Switch to 1 column on small screens */
     .hero-content, .split-layout, .features-grid, .cta-box, .specs-box { grid-template-columns: 1fr; gap: 40px; }
     .reverse-mobile { display: flex; flex-direction: column-reverse; }
     .hero { padding-top: 120px; text-align: center; }
     .hero-buttons, .tech-stack { justify-content: center; }
     .floating-card { display: none; } /* Hide complex UI on mobile */
     .nav-links { display: none; }
+    .modal-content { width: 95%; }
 }
