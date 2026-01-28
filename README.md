@@ -1,6 +1,6 @@
 # Open Civil
 
-Open Civil is an open-source, educational structural analysis software designed to bridge the gap between simplified 2D textbook problems and complex commercial "black box" software. 
+Open Civil is a free, educational structural analysis software designed to bridge the gap between simplified 2D textbook problems and complex commercial "black box" software. 
 
 It provides a **fully transparent workspace** where students can model 3D structures, visualize internal forces, and inspect the underlying mathematical matrices (Stiffness, Transformation, etc.) in real-time.
 
@@ -32,7 +32,7 @@ It provides a **fully transparent workspace** where students can model 3D struct
     * Saves projects as human-readable **JSON (.mf)** files.
     * Easy to parse with Python, MATLAB, or Excel for research.
 
-## Tech Stack
+## Tech Stack (Software Core)
 
 * **Language**: Python 3.10+
 * **GUI Framework**: PyQt6
@@ -41,42 +41,11 @@ It provides a **fully transparent workspace** where students can model 3D struct
 
 ## Installation & Setup
 
-### Option 1: Download Installer (Windows)
+### 📥 Download Installer (Windows)
 
-Download the latest `.exe` from the [Releases Page](https://github.com/ShaikhAhmedAzad/OpenCivil/releases/latest).
+The source code is currently private while in development. This repository hosts the official website.
 
-### Option 2: Run from Source (Developers)
-
-**1. Clone the Repository**
-
-```bash
-git clone https://github.com/ShaikhAhmedAzad/OpenCivil.git
-cd OpenCivil
-```
-
-**2. Create a Virtual Environment (Recommended)**
-
-```bash
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# Mac/Linux
-source venv/bin/activate
-```
-
-**3. Install Dependencies**
-
-```bash
-pip install -r requirements.txt
-```
-
-**4. Run the App**
-
-```bash
-python main.py
-```
+**[Download the latest .exe here](https://github.com/OpenCivil-Project/OpenCivil/releases/latest)**
 
 ## Usage Guide
 
@@ -87,25 +56,13 @@ python main.py
 5. **Analyze**: Press F5 or go to Analyze > Run Analysis.
 6. **Inspect**: Right-click any element to see its "Matrix Spy" or Free Body Diagram.
 
-## 🤝 Contributing
+## 🤝 Feedback & Support
 
-This is a student project created for educational purposes. Contributions, bug reports, and pull requests are welcome!
+This is a student project created for educational purposes. 
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## License
-
-This project is open-source and available for educational purposes.
+If you find a bug or have a suggestion, please **[Open an Issue](https://github.com/OpenCivil-Project/OpenCivil/issues)** in this repository.
 
 ## Author
 
-**Shaikh Ahmed Azad**  
-Civil Engineering Student | METU  
+**Shaikh Ahmed Azad** Civil Engineering Student | METU  
 [GitHub Profile](https://github.com/ShaikhAhmedAzad)
-
----
-
