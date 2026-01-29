@@ -9,7 +9,8 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Showcase from "./pages/Showcase";
 import NotFound from "./pages/NotFound";
-
+import modalImg from './assets/modal-analysis.jpg';
+import staticImg from './assets/linear-static.jpg';
 const queryClient = new QueryClient();
 
 const App = () => (
