@@ -6,9 +6,9 @@ import feature2 from "@/assets/feature-2.png";
 import feature3 from "@/assets/feature-3.png";
 import feature4 from "@/assets/feature-4.png";
 import feature6 from "@/assets/feature-6.png";
-// Make sure these match your file names exactly!
-import modalImg from '../assets/modal-analysis.jpg';
-import staticImg from '../assets/linear-static.jpg';
+// FIX: Changed from .jpg to .png to match your screenshot
+import modalImg from "@/assets/modal-analysis.png";
+import staticImg from "@/assets/linear-static.png";
 
 const features = [
   {
