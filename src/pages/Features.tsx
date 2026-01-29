@@ -13,7 +13,7 @@ import staticImg from "@/assets/linear-static.png";
 const features = [
   {
     icon: Box,
-    title: "Educational Modeling",
+    title: "AISC I-Beams and Rectangular Sections",
     description: "Render beams as physical shapes (I-beams, T-beams). Supports rigid end offsets, member releases, and cardinal insertion points.",
     image: feature1,
     iconBg: "bg-sky-100",
