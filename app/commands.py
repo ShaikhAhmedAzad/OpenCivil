@@ -16,7 +16,6 @@ class CmdDrawFrame(QUndoCommand):
         self.n1_coords = n1_coords
         self.n2_coords = n2_coords
         self.section = section
-        
         self.created_elem_id = None
         self.created_n1_id = None
         self.created_n2_id = None
