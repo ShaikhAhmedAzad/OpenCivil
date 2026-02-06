@@ -1,0 +1,153 @@
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QGridLayout, QFrame
+from PyQt6.QtCore import Qt, pyqtSignal
+from core.units import unit_registry
+
+class NodeResultsDialog(QDialog):
+    signal_mode_changed = pyqtSignal(str) 
+
+    def __init__(self, node_id, model, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Joint {node_id} Results")
+        self.setWindowFlags(Qt.WindowType.Tool) 
+        self.resize(350, 260) 
+        
+        self.node_id = str(node_id)
+        self.model = model
+        self.results = model.results
+        
+        self.init_ui()
+        self.load_initial_data()
+
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        
+        top_layout = QHBoxLayout()
+        lbl_case = QLabel("Load Case/Mode:")
+        lbl_case.setStyleSheet("font-weight: bold; color: #555;")
+        self.combo_cases = QComboBox()
+        self.combo_cases.currentIndexChanged.connect(self.on_case_changed)
+        top_layout.addWidget(lbl_case)
+        top_layout.addWidget(self.combo_cases)
+        layout.addLayout(top_layout)
+        
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
+        layout.addWidget(line)
+
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        
+        len_unit = unit_registry.length_unit_name                     
+        
+        self.txt_ux = QLabel(f"Trans X [{len_unit}]:")
+        self.txt_uy = QLabel(f"Trans Y [{len_unit}]:")
+        self.txt_uz = QLabel(f"Trans Z [{len_unit}]:")
+        
+        self.txt_rx = QLabel("Rot X [rad]:") 
+        self.txt_ry = QLabel("Rot Y [rad]:") 
+        self.txt_rz = QLabel("Rot Z [rad]:") 
+
+        val_style = "color: #0078D7; font-family: Consolas; font-weight: bold; font-size: 11pt;"
+        self.lbl_ux = QLabel("0.0000"); self.lbl_ux.setStyleSheet(val_style)
+        self.lbl_uy = QLabel("0.0000"); self.lbl_uy.setStyleSheet(val_style)
+        self.lbl_uz = QLabel("0.0000"); self.lbl_uz.setStyleSheet(val_style)
+        
+        self.lbl_rx = QLabel("0.0000"); self.lbl_rx.setStyleSheet(val_style)
+        self.lbl_ry = QLabel("0.0000"); self.lbl_ry.setStyleSheet(val_style)
+        self.lbl_rz = QLabel("0.0000"); self.lbl_rz.setStyleSheet(val_style)
+
+        for lbl in [self.lbl_ux, self.lbl_uy, self.lbl_uz, self.lbl_rx, self.lbl_ry, self.lbl_rz]:
+            lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        grid.addWidget(self.txt_ux, 0, 0); grid.addWidget(self.lbl_ux, 0, 1)
+        grid.addWidget(self.txt_uy, 1, 0); grid.addWidget(self.lbl_uy, 1, 1)
+        grid.addWidget(self.txt_uz, 2, 0); grid.addWidget(self.lbl_uz, 2, 1)
+        
+        grid.addWidget(self.txt_rx, 0, 2); grid.addWidget(self.lbl_rx, 0, 3)
+        grid.addWidget(self.txt_ry, 1, 2); grid.addWidget(self.lbl_ry, 1, 3)
+        grid.addWidget(self.txt_rz, 2, 2); grid.addWidget(self.lbl_rz, 2, 3)
+        
+        layout.addLayout(grid)
+        
+        self.lbl_info = QLabel("")
+        self.lbl_info.setStyleSheet("color: #666; font-size: 11px; margin-top: 10px;")
+        self.lbl_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.lbl_info)
+        
+        layout.addStretch()
+
+    def load_initial_data(self):
+        """
+        Smart Loader: Checks for both Main Results (RSA/Static) AND Modal Results.
+        """
+        self.combo_cases.blockSignals(True)
+        self.combo_cases.clear()
+        
+        if "displacements" in self.results and self.results["displacements"]:
+            
+            display_name = "Analysis Result"
+            if "rsa_info" in self.results:
+                method = self.results["rsa_info"].get("method", "SRSS")
+                                                                          
+                display_name = f"RSA Final Result ({method})"
+            elif self.results.get("info", {}).get("type") == "Linear Static":
+                display_name = "Linear Static"
+            
+            self.combo_cases.addItem(display_name, "MAIN_RESULT")
+
+        if "mode_shapes" in self.results:
+            periods = self.results.get("tables", {}).get("periods", [])
+            for row in periods:
+                mode_num = row['mode']
+                T = row['T']
+                self.combo_cases.addItem(f"Mode {mode_num} (T={T:.4f}s)", f"Mode {mode_num}")
+
+        self.combo_cases.blockSignals(False)
+        
+        if self.combo_cases.count() > 0:
+            self.on_case_changed(0)
+        else:
+            self.lbl_info.setText("No results found for this node.")
+
+    def on_case_changed(self, index):
+        if index < 0: return
+        key = self.combo_cases.currentData()
+        
+        vector = [0.0] * 6
+        
+        if key == "MAIN_RESULT":
+                                                 
+            self.signal_mode_changed.emit("MAIN_RESULT") 
+            
+            vector = self.results.get("displacements", {}).get(self.node_id, [0.0]*6)
+            self.lbl_info.setText("Displaying Final Combined Displacements.")
+            
+        elif str(key).startswith("Mode"):
+                                                                                      
+            shapes = self.results.get("mode_shapes", {})
+            mode_data = shapes.get(key, {})
+            vector = mode_data.get(self.node_id, [0.0]*6)
+            self.lbl_info.setText("Displaying Normalized Mode Shape.")
+            
+            self.signal_mode_changed.emit(key)
+                              
+        ux_m, uy_m, uz_m = vector[0], vector[1], vector[2]
+        rx, ry, rz = vector[3], vector[4], vector[5]
+
+        ux_disp = unit_registry.to_display_length(ux_m)
+        uy_disp = unit_registry.to_display_length(uy_m)
+        uz_disp = unit_registry.to_display_length(uz_m)
+
+        def fmt(val):
+            if abs(val) < 1e-10: return "0.0000"
+            if abs(val) < 1e-4: return f"{val:.4e}"
+            return f"{val:.4f}"
+
+        self.lbl_ux.setText(fmt(ux_disp))
+        self.lbl_uy.setText(fmt(uy_disp))
+        self.lbl_uz.setText(fmt(uz_disp))
+        
+        self.lbl_rx.setText(fmt(rx))
+        self.lbl_ry.setText(fmt(ry))
+        self.lbl_rz.setText(fmt(rz))

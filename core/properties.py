@@ -1,0 +1,237 @@
+                             
+from dataclasses import dataclass
+import math
+
+@dataclass
+class Material:
+    """Structural Material definition."""
+    name: str
+    E: float                                                 
+    nu: float                        
+    density: float                         
+    mat_type: str                        
+    fy: float = 0.0                  
+    fu: float = 0.0                     
+
+    @property
+    def G(self):
+        return self.E / (2 * (1 + self.nu))
+
+class Section:
+    """Base class for cross-sections."""
+    
+    def __init__(self, name, material: Material, color=None):
+        self.name = name
+        self.material = material
+        self.color = color if color else (0.75, 0.75, 0.75, 1.0)
+        
+        self.A = 0.0
+        self.J = 0.0
+        self.I33 = 0.0                      
+        self.I22 = 0.0                      
+        self.Asy = 0.0                      
+        self.Asz = 0.0                      
+        
+        self.S33 = 0.0; self.S22 = 0.0
+        self.Z33 = 0.0; self.Z22 = 0.0
+        self.r33 = 0.0; self.r22 = 0.0
+
+        self.modifiers = {
+            "A": 1.0,    "As2": 1.0, "As3": 1.0, "J": 1.0,
+            "I2": 1.0,   "I3": 1.0,  "Mass": 1.0, "Weight": 1.0
+        }
+
+    def get_insertion_point_shift(self, cardinal_point):
+        return 0.0, 0.0
+
+    def __repr__(self):
+        return f"Section({self.name})"
+    
+class RectangularSection(Section):
+    def __init__(self, name, material: Material, b, h):
+        super().__init__(name, material)
+        self.b = float(b)
+        self.h = float(h)
+        self._calculate_properties()
+    
+    def get_shape_coords(self):
+        """Returns list of (y, z) tuples for the perimeter in local coords."""
+        dy = self.b / 2
+        dz = self.h / 2
+        return [
+            (dy, dz),              
+            (-dy, dz),            
+            (-dy, -dz),           
+            (dy, -dz)              
+        ]
+
+    def _calculate_properties(self):
+        b, h = self.b, self.h
+        self.A = b * h
+        if self.A == 0: return
+        
+        self.Asy = (5/6) * self.A 
+        self.Asz = (5/6) * self.A 
+
+        self.I33 = (h * b**3) / 12 
+        self.I22 = (b * h**3) / 12
+
+        long = max(b, h)
+        short = min(b, h)
+        ratio = short / long
+        factor = (1.0 / 3.0) - 0.21 * ratio * (1.0 - (ratio**4) / 12.0)
+        self.J = factor * long * (short**3) 
+        
+        self.S33 = self.I33 / (h / 2)
+        self.S22 = self.I22 / (b / 2)
+        self.Z33 = (b * h**2) / 4
+        self.Z22 = (h * b**2) / 4
+        self.r33 = math.sqrt(self.I33 / self.A)
+        self.r22 = math.sqrt(self.I22 / self.A)
+
+class ISection(Section):
+    def __init__(self, name, material: Material, h, w_top, t_top, w_bot, t_bot, t_web, props=None):
+        super().__init__(name, material)
+        self.h = float(h); self.w_top = float(w_top); self.t_top = float(t_top)
+        self.w_bot = float(w_bot); self.t_bot = float(t_bot); self.t_web = float(t_web)
+        
+        self._calculate_centroid()
+
+        if props:
+            self._set_exact_properties(props)
+        else:
+            self._calculate_properties()
+
+    def _calculate_centroid(self):
+        """Calculates y_bar (distance from bottom to centroid) for VISUALS."""
+        H = self.h
+        B_t, T_t = self.w_top, self.t_top
+        B_b, T_b = self.w_bot, self.t_bot
+        t_w = self.t_web
+        h_web = H - T_t - T_b
+        
+        A_top = B_t * T_t
+        A_bot = B_b * T_b
+        A_web = h_web * t_w
+        total_area = A_top + A_bot + A_web
+        
+        if total_area == 0:
+            self.y_bar = H / 2
+        else:
+            y_bot_c = T_b / 2
+            y_web_c = T_b + h_web / 2
+            y_top_c = H - T_t / 2
+            self.y_bar = (A_bot*y_bot_c + A_web*y_web_c + A_top*y_top_c) / total_area
+
+    def _set_exact_properties(self, p):
+        """Uses exact values from AISC/SAP table."""
+        self.A = float(p.get('A', 0.0))
+        self.J = float(p.get('J', 0.0))
+        self.I22 = float(p.get('I22', 0.0)) 
+        self.I33 = float(p.get('I33', 0.0))
+        self.Asy = float(p.get('As2', 0.0))
+        self.Asz = float(p.get('As3', 0.0))
+        
+        self.S33 = float(p.get('S33', 0.0))
+        self.S22 = float(p.get('S22', 0.0))
+        self.Z33 = float(p.get('Z33', 0.0))
+        self.Z22 = float(p.get('Z22', 0.0))
+        self.r33 = float(p.get('r33', 0.0))
+        self.r22 = float(p.get('r22', 0.0))
+
+    def get_shape_coords(self):
+        """Returns 12 points defining the I-Beam perimeter."""
+                                               
+        if not hasattr(self, 'y_bar'): self._calculate_centroid()
+
+        H = self.h
+        W_top = self.w_top
+        W_bot = self.w_bot
+        t_top = self.t_top
+        t_bot = self.t_bot
+        t_web = self.t_web
+        
+        y_top = H - self.y_bar   
+        y_bot = -self.y_bar  
+        
+        tr_x = W_top / 2; tl_x = -W_top / 2
+        br_x = W_bot / 2; bl_x = -W_bot / 2
+        wr_x = t_web / 2; wl_x = -t_web / 2
+        y_web_top = y_top - t_top
+        y_web_bot = y_bot + t_bot
+        
+        return [
+            (tr_x, y_top),      (tl_x, y_top),                      
+            (tl_x, y_web_top),  (wl_x, y_web_top),                         
+            (wl_x, y_web_bot),  (bl_x, y_web_bot),                         
+            (bl_x, y_bot),      (br_x, y_bot),                      
+            (br_x, y_web_bot),  (wr_x, y_web_bot),                         
+            (wr_x, y_web_top),  (tr_x, y_web_top)                          
+        ]
+    
+    def _calculate_properties(self):
+        """Fallback calculation if no exact props provided."""
+        H = self.h
+        B_t, T_t = self.w_top, self.t_top
+        B_b, T_b = self.w_bot, self.t_bot
+        t_w = self.t_web
+        h_web = H - T_t - T_b
+        
+        A_top = B_t * T_t
+        A_bot = B_b * T_b
+        A_web = h_web * t_w
+        self.A = A_top + A_bot + A_web
+        
+        if self.A == 0: return
+
+        y_bot_c = T_b / 2
+        y_web_c = T_b + h_web / 2
+        y_top_c = H - T_t / 2
+        self.y_bar = (A_bot*y_bot_c + A_web*y_web_c + A_top*y_top_c) / self.A
+        
+        I2_bot = (B_b * T_b**3)/12 + A_bot*(y_bot_c - self.y_bar)**2
+        I2_web = (t_w * h_web**3)/12 + A_web*(y_web_c - self.y_bar)**2
+        I2_top = (B_t * T_t**3)/12 + A_top*(y_top_c - self.y_bar)**2
+        self.I22 = I2_bot + I2_web + I2_top
+
+        I3_bot = (T_b * B_b**3)/12
+        I3_web = (h_web * t_w**3)/12
+        I3_top = (T_t * B_t**3)/12
+        self.I33 = I3_bot + I3_web + I3_top
+
+        self.Asy = B_t * T_t + B_b * T_b 
+        self.Asz = h_web * self.t_web 
+
+        self.J = (1/3) * (B_b * T_b**3 + h_web * t_w**3 + B_t * T_t**3)
+
+        c_top = H - self.y_bar; c_bot = self.y_bar
+        self.S33 = self.I33 / max(c_top, c_bot)
+        max_width = max(B_t, B_b)
+        self.S22 = self.I22 / (max_width / 2)
+        
+        self.Z33 = max_width * T_t * (H - T_t) + t_w * (h_web**2) / 4
+        self.Z22 = (2 * T_t * B_t**2) / 4 + (h_web * t_w**2) / 4
+
+        self.r33 = math.sqrt(self.I33 / self.A)
+        self.r22 = math.sqrt(self.I22 / self.A)
+
+class GeneralSection(Section):
+    def __init__(self, name, material, props_dict, color=None):
+        super().__init__(name, material, color)
+                                                     
+        self.A = float(props_dict.get('A', 0.0))
+        self.J = float(props_dict.get('J', 0.0))
+        self.I33 = float(props_dict.get('I33', 0.0))
+        self.I22 = float(props_dict.get('I22', 0.0))
+        self.Asy = float(props_dict.get('Asy', 0.0))
+        self.Asz = float(props_dict.get('Asz', 0.0))
+        
+        self.S33 = 0.0; self.S22 = 0.0; self.Z33 = 0.0; self.Z22 = 0.0
+        self.r33 = 0.0; self.r22 = 0.0
+
+    def get_shape_coords(self):
+        """Returns empty list so no 3D extrusion is drawn."""
+        return []
+
+    def get_insertion_point_shift(self, cardinal_point):
+        return 0.0, 0.0

@@ -1,0 +1,228 @@
+                       
+import math
+import numpy as np
+from core.properties import Section
+
+class Node:
+    def __init__(self, id: int, x: float, y: float, z: float):
+        self.id = int(id)
+        self.x = float(x)
+        self.y = float(y)
+        self.z = float(z)
+                                                 
+        self.restraints = [False] * 6 
+        self.diaphragm_name = None
+
+    def get_coords(self):
+        return np.array([self.x, self.y, self.z])
+
+    def __repr__(self):
+        return f"Node({self.id})"
+
+class FrameElement:
+    def __init__(self, id: int, node_i: Node, node_j: Node, section: Section, beta_angle: float = 0.0):
+        self.id = int(id)
+        self.node_i = node_i
+        self.node_j = node_j
+        self.section = section
+        self.beta_angle = float(beta_angle)             
+        
+        self.end_offset_i = 0.0                        
+        self.end_offset_j = 0.0                        
+        self.rigid_zone_factor = 0.0                                    
+
+        self.cardinal_point = 10
+        self.joint_offset_i = np.array([0.0, 0.0, 0.0]) 
+        self.joint_offset_j = np.array([0.0, 0.0, 0.0])
+        self.releases_i = [False] * 6 
+        self.releases_j = [False] * 6
+
+    def length(self):
+        dx = self.node_j.x - self.node_i.x
+        dy = self.node_j.y - self.node_i.y
+        dz = self.node_j.z - self.node_i.z
+        return math.sqrt(dx**2 + dy**2 + dz**2)
+
+    def get_local_axes(self):
+        """
+        Calculates the 3x3 Rotation Matrix (Direction Cosines) for the element.
+        Needed for:
+        1. 3D Extrusion (Visualizing the shape)
+        2. Stiffness Matrix Transformation (Solver)
+        """
+                                          
+        xi, yi, zi = self.node_i.x, self.node_i.y, self.node_i.z
+        xj, yj, zj = self.node_j.x, self.node_j.y, self.node_j.z
+        
+        V_x = np.array([xj - xi, yj - yi, zj - zi])
+        L = np.linalg.norm(V_x)
+        if L == 0: return np.eye(3)
+        v_x = V_x / L                
+
+        if np.abs(v_x[2]) > 0.99:
+                                                           
+            temp_vec = np.array([0.0, 1.0, 0.0]) 
+        else:
+            temp_vec = np.array([0.0, 0.0, 1.0])
+
+        v_y = np.cross(temp_vec, v_x)
+        v_y = v_y / np.linalg.norm(v_y)
+
+        v_z = np.cross(v_x, v_y)
+        v_z = v_z / np.linalg.norm(v_z)
+
+        rad = math.radians(self.beta_angle)
+        c = math.cos(rad)
+        s = math.sin(rad)
+
+        v_y_final = v_y * c + v_z * s
+        v_z_final = -v_y * s + v_z * c
+        
+        return v_x, v_y_final, v_z_final
+
+    def __repr__(self):
+        return f"Frame3D({self.id})"
+    
+    def get_transformation_matrix(self):
+        """
+        Builds the 12x12 Transformation Matrix (T).
+        This allows us to add this element's stiffness to the global system,
+        regardless of how the element is oriented or rotated.
+        """
+                                                                                   
+        v1, v2, v3 = self.get_local_axes()
+        
+        R = np.array([v1, v2, v3]) 
+
+        T = np.zeros((12, 12))
+        
+        T[0:3, 0:3] = R
+        
+        T[3:6, 3:6] = R
+        
+        T[6:9, 6:9] = R
+        
+        T[9:12, 9:12] = R
+        
+        return T
+    
+    def get_cardinal_offsets(self):
+        """
+        Calculates the local offsets (ey, ez) from the Node to the Section Centroid
+        based on the Cardinal Point ID (1-11).
+        
+        Returns:
+            offset_y, offset_z (Distances from Node to Centroid)
+        """
+                                                                   
+        if self.cardinal_point == 10:
+            base_y, base_z = 0.0, 0.0
+        
+        elif self.cardinal_point == 11:
+                                                                             
+            base_y, base_z = 0.0, 0.0
+            
+        else:
+                                      
+            h = getattr(self.section, 'h', 0.0)
+            
+            if hasattr(self.section, 'b'): 
+                b = self.section.b              
+            elif hasattr(self.section, 'w_top'):
+                b = max(self.section.w_top, self.section.w_bot)            
+            else:
+                b = 0.0                
+
+            if hasattr(self.section, 'y_bar'):
+                                                
+                c_bot = self.section.y_bar                                           
+                c_top = h - self.section.y_bar                                    
+            else:
+                                                        
+                c_bot = h / 2
+                c_top = h / 2
+
+            if self.cardinal_point in [1, 2, 3]:               
+                base_z = c_bot
+            elif self.cardinal_point in [4, 5, 6]:                           
+                base_z = 0.0
+            else:                     
+                base_z = -c_top
+
+            if self.cardinal_point in [1, 4, 7]: y_mult = 0.5         
+            elif self.cardinal_point in [2, 5, 8]: y_mult = 0.0         
+            else: y_mult = -0.5                                        
+
+            base_y = y_mult * b
+
+        return base_y, base_z
+
+    def get_insertion_matrix(self):
+        """
+        Builds the 12x12 Transformation Matrix [Tcp] that links
+        Node Displacements to Centroid Displacements.
+        """
+                                                                
+        cy, cz = self.get_cardinal_offsets()
+        
+        v1, v2, v3 = self.get_local_axes()
+        
+        R = np.array([v1, v2, v3]) 
+        
+        local_off_i = R @ self.joint_offset_i
+        local_off_j = R @ self.joint_offset_j
+        
+        ey_i = cy + local_off_i[1]
+        ez_i = cz + local_off_i[2]
+        
+        ey_j = cy + local_off_j[1]
+        ez_j = cz + local_off_j[2]
+
+        def make_block(ey, ez):
+            B = np.eye(6)
+                                                                
+            B[0, 4] = ez                             
+            B[0, 5] = -ey                            
+            B[1, 3] = -ez                         
+            B[2, 3] = ey                          
+            return B
+
+        T = np.zeros((12, 12))
+        T[0:6, 0:6]   = make_block(ey_i, ez_i)
+        T[6:12, 6:12] = make_block(ey_j, ez_j)
+        
+        return T
+    
+    def get_transformed_stiffness_matrix(self, k_pure):
+        """
+        Applies the Cardinal Point transformation to the raw stiffness matrix.
+        K_final = T_cp.T * K_pure * T_cp
+        """
+        T = self.get_insertion_matrix()
+        return T.T @ k_pure @ T
+    
+class Slab:
+    """
+    Represents a visual area element (Floor/Wall).
+    Used for:
+    1. Visualizing the building (Grey semi-transparent planes)
+    2. Calculating Center of Mass for Rigid Diaphragms
+    3. Distributing area loads to frames (future)
+    """
+    def __init__(self, id, nodes, thickness, material=None):
+        self.id = int(id)
+        self.nodes = nodes                                         
+        self.thickness = float(thickness)
+        self.material = material
+        self.color = (0.8, 0.8, 0.8, 0.4)                               
+        
+    def get_centroid(self):
+                                   
+        if not self.nodes: return (0,0,0)
+        x = sum(n.x for n in self.nodes) / len(self.nodes)
+        y = sum(n.y for n in self.nodes) / len(self.nodes)
+        z = sum(n.z for n in self.nodes) / len(self.nodes)
+        return x, y, z
+
+    def __repr__(self):
+        return f"Slab({self.id})"
