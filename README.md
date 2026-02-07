@@ -1,68 +1,322 @@
-# Open Civil
+# OpenCivil
 
-Open Civil is a free, educational structural analysis software designed to bridge the gap between simplified 2D textbook problems and complex commercial "black box" software. 
+**A Transparent 3D Structural Analysis Engine for Learning Finite Element Methods**
 
-It provides a **fully transparent workspace** where students can model 3D structures, visualize internal forces, and inspect the underlying mathematical matrices (Stiffness, Transformation, etc.) in real-time.
+OpenCivil bridges the gap between simplified 2D textbook problems and complex commercial "black box" software. Built as an educational tool, it provides full visibility into the FEM solver logic, making it perfect for civil engineering students learning structural analysis.
 
-## Screenshots
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)](https://github.com/OpenCivil-Project/OpenCivil/releases)
+[![Version](https://img.shields.io/badge/version-v0.655%20Pre--Alpha-orange.svg)](https://github.com/OpenCivil-Project/OpenCivil/releases/latest)
 
-| 3D Modeling | Analysis Results |
-|:---:|:---:|
-| <img src="images/hero-main.png" width="400"> | <img src="images/feature-3.png" width="400"> |
-| *Real-time 3D Extrusions* | *Nodal deformations & Fixed end forces* |
+![OpenCivil Main Interface](images/hero-main.png)
 
-## Key Features
+---
 
-* **Educational "Glass Box" Engine**:
-    * View the raw **12x12 Stiffness Matrix [k]** for any element.
-    * Inspect **Transformation Matrices [T]** and Fixed End Force vectors.
-    * Trace the solver's logic step-by-step.
+## 🎯 Why OpenCivil?
 
-* **Advanced Structural Modeling**:
-    * Full **3D Timoshenko Beam Theory** (Shear Deformation).
-    * **Rigid End Offsets** & Cardinal Insertion Points.
-    * **Member Releases** (Moment/Shear) using static condensation.
+**For Students:**
+- See exactly how FEM works under the hood
+- Inspect stiffness matrices, transformation matrices, and FEF vectors
+- Understand the math behind commercial software like SAP2000 or ETABS
+- No "black box" - every calculation is transparent
 
-* **Interactive Visualization**:
-    * Fast OpenGL rendering (Arcball rotation, Pan, Zoom).
-    * True-to-scale extruded shapes (I-Beams, T-Beams, Rectangular).
-    * Visual "Matrix Spy" tool for debugging models.
+**For Educators:**
+- Use real 3D problems instead of simplified 2D examples
+- Students can verify hand calculations against the solver
+- Export matrices to MATLAB/Python for homework assignments
+- Completely free and open to academic use
 
-* **Transparent Data**:
-    * Saves projects as human-readable **JSON (.mf)** files.
-    * Easy to parse with Python, MATLAB, or Excel for research.
+---
 
-## Tech Stack (Software Core)
+## ✨ Key Features
 
-* **Language**: Python 3.10+
-* **GUI Framework**: PyQt6
-* **Graphics**: PyOpenGL / PyQtGraph
-* **Math Kernel**: NumPy & SciPy (Sparse Linear Algebra)
+### 🔬 **"Glass Box" FEM Solver**
+Unlike commercial software, OpenCivil lets you see everything:
+- **12×12 Element Stiffness Matrices [k]** in local coordinates
+- **Transformation Matrices [T]** showing global-to-local conversion
+- **Fixed End Forces (FEF)** from distributed and point loads
+- **Matrix Spy Tool** - Export matrices as JSON for external analysis
+- **Free Body Diagrams** for each element showing internal forces
 
-## Installation & Setup
+### 🏗️ **Advanced Structural Modeling**
+- **3D Timoshenko Beam Theory** with shear deformation effects
+- **Rigid End Offsets** and cardinal insertion points (11 positions)
+- **Member Releases** (moment/shear/axial) using static condensation
+- **Joint Offsets** for eccentric connections
+- **True-to-scale 3D extrusions** (I-beams, rectangular, custom shapes)
 
-### 📥 Download Installer (Windows)
+### 📊 **Multiple Analysis Types**
 
-The source code is currently private while in development. This repository hosts the official website.
+#### 1️⃣ **Linear Static Analysis**
+- Full 3D frame analysis
+- Distributed loads, point loads, nodal loads
+- Self-weight generation
+- Load combinations
+- Reaction forces and base shear
 
-**[Download the latest .exe here](https://github.com/OpenCivil-Project/OpenCivil/releases/latest)**
+#### 2️⃣ **Modal Analysis (Eigenvalue)**
+- Shift-invert eigenvalue solver
+- Mode shapes visualization with animation
+- Modal participation factors (Γx, Γy, Γz)
+- Mass participation ratios
+- Period and frequency extraction
 
-## Usage Guide
+#### 3️⃣ **Response Spectrum Analysis** 🇹🇷
+**Built-in Turkish Seismic Code 2018 (TBDY) Support:**
+- Automatic spectrum generation (Horizontal & Vertical)
+- Site class effects (ZA, ZB, ZC, ZD, ZE)
+- Modal combination: SRSS or CQC
+- Directional combination: SRSS or ABS
+- Damping correction (Newmark-Hall method)
+- Custom response spectrum functions
 
-1. **Define Grid**: Start a new model and define your X/Y/Z grid lines.
-2. **Materials & Sections**: Go to Define > Section Properties to create I-beams or Concrete Rectangles.
-3. **Draw**: Use the Draw Frame tool to click-and-drag beams between grid points.
-4. **Assign**: Select members to assign Loads, Releases, or Supports.
-5. **Analyze**: Press F5 or go to Analyze > Run Analysis.
-6. **Inspect**: Right-click any element to see its "Matrix Spy" or Free Body Diagram.
+### 🎨 **Interactive Visualization**
+- **3D OpenGL rendering** with hardware acceleration
+- **Deformed shape animation** with adjustable speed and scale
+- **Multiple view modes**: 3D, XY, XZ, YZ projections
+- **Click-to-inspect**: Select any node or element for details
+- **Customizable graphics**: Background color, node size, line width, transparency
+- **Sound effects** during animation (optional)
 
-## 🤝 Feedback & Support
+### 💾 **Transparent Data Format**
+- Projects saved as **human-readable JSON** (.mf files)
+- Easy to parse with Python, MATLAB, or Excel
+- Export analysis results for post-processing
+- Matrix data available for verification
 
-This is a student project created for educational purposes. 
+---
 
-If you find a bug or have a suggestion, please **[Open an Issue](https://github.com/OpenCivil-Project/OpenCivil/issues)** in this repository.
+## 🖥️ System Requirements
 
-## Author
+- **OS**: Windows 10/11 (64-bit)
+- **RAM**: 4 GB minimum, 8 GB recommended
+- **Graphics**: OpenGL 3.3+ capable GPU
+- **Disk**: 200 MB installation space
 
-**Shaikh Ahmed Azad** Civil Engineering Student | METU  
-[GitHub Profile](https://github.com/ShaikhAhmedAzad)
+---
+
+## 📥 Installation
+
+### Option 1: Windows Installer (Recommended)
+1. Download the latest installer from [Releases](https://github.com/OpenCivil-Project/OpenCivil/releases/latest)
+2. Run `OpenCivil_Setup_v0.x.exe`
+3. Follow installation wizard
+4. Launch from desktop shortcut
+
+**No Python installation required!**
+
+### Option 2: Run from Source (Developers)
+```bash
+git clone https://github.com/OpenCivil-Project/OpenCivil.git
+cd OpenCivil
+pip install -r requirements.txt
+python app/main.py
+```
+
+**Dependencies:**
+- Python 3.10+
+- PyQt6
+- NumPy, SciPy
+- PyOpenGL, PyQtGraph
+- Matplotlib
+
+---
+
+## 🚀 Quick Start Guide
+
+### 1. Create a New Model
+```
+File > New Model > Define grid lines (X, Y, Z)
+```
+
+### 2. Define Materials & Sections
+```
+Define > Material Properties > Add (e.g., Concrete C30, Steel S275)
+Define > Section Properties > Add I-Beam or Rectangular
+```
+
+### 3. Draw Structure
+```
+Draw > Frame Elements > Click start node, drag to end node
+```
+
+### 4. Assign Properties
+- **Restraints**: Select nodes → Assign > Joint Restraints
+- **Loads**: Select elements → Assign > Frame Loads
+- **Releases**: Select elements → Assign > Frame Releases
+
+### 5. Define Analysis Case
+```
+Define > Load Cases > Add "DEAD" or "LIVE"
+Define > Load Patterns > Set scale factors
+```
+
+### 6. Run Analysis
+```
+Analyze > Run Analysis (F5)
+Choose: Linear Static / Modal / Response Spectrum
+```
+
+### 7. View Results
+- **Deformed Shape**: Display > Show Deformed Shape
+- **Animation**: Display > Animate Deformed Shape
+- **Reactions**: Display > Show Reactions Table
+- **Element Forces**: Right-click element > View Free Body Diagram
+- **Matrices**: Right-click element > Matrix Spy
+
+---
+
+## 📖 Educational Use Cases
+
+### For FEM Courses:
+1. **Verify hand calculations** - Export stiffness matrix and compare
+2. **Understand transformations** - See how local coordinates convert to global
+3. **Study releases** - Learn static condensation by inspecting condensed matrices
+4. **Explore Timoshenko theory** - Compare results with/without shear deformation
+
+### For Structural Dynamics:
+1. **Modal analysis** - Extract mode shapes and natural frequencies
+2. **Response spectrum** - Apply TBDY 2018 or custom spectra
+3. **Animation** - Visualize mode shapes with breathing effect
+
+### For Seismic Design (Turkey):
+1. **TBDY 2018 Compliance** - Built-in spectrum generator
+2. **Site effects** - Compare ZA vs ZE site classes
+3. **Modal combination** - Study CQC vs SRSS differences
+
+---
+
+## 🎓 Sample Problems Included
+
+The `/Example_Project/` folder contains:
+- Simple cantilever beam
+- 2-story frame structure
+- Modal analysis test case
+
+---
+
+## 🔧 Advanced Features
+
+### Matrix Spy Tool
+Export element matrices to JSON:
+```json
+{
+  "element_id": "1",
+  "k": [[...], [...], ...],  // 12×12 local stiffness
+  "t": [[...], [...], ...],  // 12×12 transformation
+  "fef": [...]               // Fixed end forces
+}
+```
+
+### Custom Response Spectrum
+Define your own spectrum function:
+```
+Define > Functions > Response Spectrum
+Enter Period-Acceleration pairs
+```
+
+### Load Combinations
+```
+Define > Load Cases > Add Combination
+COMB1 = 1.2×DEAD + 1.6×LIVE
+```
+
+### Unit System Support
+- SI: kN, m, °C
+- Metric: N, mm, °C
+- Imperial: kip, ft, °F
+- Turkish: Tonf, m, °C
+
+---
+
+## 🤝 Contributing
+
+This project is currently in **active development** (Pre-Alpha stage). 
+
+**Not accepting code contributions yet**, but feedback is welcome:
+- 🐛 **Bug Reports**: [Open an Issue](https://github.com/OpenCivil-Project/OpenCivil/issues)
+- 💡 **Feature Requests**: [Start a Discussion](https://github.com/OpenCivil-Project/OpenCivil/discussions)
+- 📧 **Contact**: [GitHub Profile](https://github.com/ShaikhAhmedAzad)
+
+---
+
+## 📚 Documentation
+
+Detailed documentation is coming soon. For now:
+- Press `F1` in the software for context help
+- Check `/docs/` folder for user guides (in development)
+- Watch tutorial videos (coming soon)
+
+---
+
+## ⚖️ License
+
+MIT License - Free for educational and non-commercial use.
+
+See [LICENSE](LICENSE) file for details.
+
+---
+
+## 👨‍🎓 Author
+
+**Shaikh Ahmed Azad**  
+Civil Engineering Student | Middle East Technical University (METU)  
+📧 Contact: [GitHub Profile](https://github.com/ShaikhAhmedAzad)
+
+---
+
+## 🙏 Acknowledgments
+
+- **METU Civil Engineering Department** for academic support
+- **Open-source community** for Python/PyQt/NumPy/SciPy libraries
+- **Students** who provided feedback during testing
+
+---
+
+## 🔮 Roadmap
+
+**Upcoming Features:**
+- [ ] Nonlinear analysis (P-Delta effects)
+- [ ] Time history analysis
+- [ ] Steel connection design checks
+- [ ] Concrete section design (ACI/Eurocode)
+- [ ] DXF import/export
+- [ ] Python scripting API
+- [ ] Multi-language support (English/Turkish)
+
+---
+
+## 📸 Screenshots
+
+| Feature | Preview |
+|---------|---------|
+| **3D Modeling** | ![Modeling](images/hero-main.png) |
+| **Matrix Spy** | Shows 12×12 stiffness matrix in spreadsheet view |
+| **Deformed Shape** | ![Results](images/feature-3.png) |
+| **Modal Animation** | Breathing effect showing mode shapes |
+| **Response Spectrum** | TBDY 2018 spectrum curves with modal combination |
+
+---
+
+## ❓ FAQ
+
+**Q: Is this suitable for real engineering design?**  
+A: No - OpenCivil is an **educational tool**. Use commercial software (SAP2000, ETABS, etc.) for actual building design.
+
+**Q: Can I use OpenCivil for my thesis/research?**  
+A: Yes! Export the matrices and results for your analysis. Please cite the software if used in publications.
+
+**Q: Does it support plate/shell elements?**  
+A: Not yet - currently only 3D beam/frame elements. Plates are on the roadmap.
+
+**Q: Why is the Turkish Seismic Code included?**  
+A: The developer is based in Turkey, and TBDY 2018 integration makes it valuable for Turkish students and engineers learning seismic design.
+
+**Q: Can I run this on Mac/Linux?**  
+A: Currently Windows-only via installer. If you run from source (Python), it *should* work on Mac/Linux but is untested.
+
+---
+
+**⭐ If OpenCivil helped you learn FEM, please star this repo!**
+
+[Download Now](https://github.com/OpenCivil-Project/OpenCivil/releases/latest) | [Report Bug](https://github.com/OpenCivil-Project/OpenCivil/issues) | [Website](https://opencivil-project.github.io/)
