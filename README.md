@@ -355,7 +355,6 @@ Civil Engineering Student | Middle East Technical University (METU)
 - [ ] Concrete section design (ACI/Eurocode)
 - [ ] DXF import/export
 - [ ] Python scripting API
-- [ ] Multi-language support (English/Turkish)
 - [ ] Extended validation documentation
 
 ---
