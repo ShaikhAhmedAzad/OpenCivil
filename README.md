@@ -367,7 +367,7 @@ Civil Engineering Student | Middle East Technical University (METU)
 | **3D Modeling** | ![Modeling](images/hero-main.png) |
 | **Deformed Shape** | ![Results](images/deformed_shape.png) |
 | **Modal Animation** | ![Animation](images/Animation.gif) |
-| **Response Spectrum** | [TBDY 2018](images/TBDY_Response_Spectra.png) |
+| **Response Spectrum** | ![TBDY 2018](images/TBDY_Response_Spectra.png) |
 
 ---
 
