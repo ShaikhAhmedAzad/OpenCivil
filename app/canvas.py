@@ -981,8 +981,8 @@ class MCanvas3D(gl.GLViewWidget):
     def _draw_loads(self, model):
         """
         Visualizes Nodal Loads.
-        - Forces: Single Arrow (2 Fins)
-        - Moments: Double Arrow (2 Fins)
+        - Always: Draws Arrow.
+        - Selected: Draws Text Label with Units.
         """
         if not model.loads: return
         if not self.show_loads: return
@@ -991,35 +991,26 @@ class MCanvas3D(gl.GLViewWidget):
         arrow_lines = []
         arrow_colors = []
         
-        L = 2.0                
-        H = 0.5               
-        W = 0.2                           
+        L = 2.0; H = 0.5; W = 0.2                           
         
         def add_arrow(pt, direction, color, is_moment):
-                      
             tip = pt
             tail = pt - (direction * L)
             arrow_lines.append(tail); arrow_lines.append(tip)
             arrow_colors.append(color); arrow_colors.append(color)
             
             def add_head(base_pt):
-                                                               
                 if abs(direction[2]) > 0.9: perp = np.array([1.0, 0.0, 0.0])                        
                 elif abs(direction[1]) > 0.9: perp = np.array([1.0, 0.0, 0.0])                        
                 else: perp = np.array([0.0, 0.0, 1.0])                        
-                
                 w_vec = perp * W
-                
                 base = base_pt - (direction * H)
-                
                 arrow_lines.append(base_pt); arrow_lines.append(base + w_vec)
                 arrow_lines.append(base_pt); arrow_lines.append(base - w_vec)
                 for _ in range(4): arrow_colors.append(color)
 
             add_head(tip)             
-            
             if is_moment:
-                                                          
                 add_head(tip - (direction * (H * 0.8)))
 
         for load in model.loads:
@@ -1031,46 +1022,37 @@ class MCanvas3D(gl.GLViewWidget):
             if not self._is_visible(node.x, node.y, node.z): continue
             
             origin = np.array([node.x, node.y, node.z])
+            is_selected = (node.id in self.selected_node_ids)
 
-            if abs(load.fz) > 0:
-                d = np.array([0, 0, 1.0]) * (1 if load.fz > 0 else -1)
-                c = (0, 1, 0, 1) if load.fz > 0 else (1, 0, 0, 1)
-                add_arrow(origin, d, c, False)
-                self._add_load_label(origin, d, load.fz, "Force", c)
+            # Helper to condense logic
+            def process_component(val, axis_vec, color, is_moment):
+                if abs(val) > 0:
+                    d = axis_vec * (1 if val > 0 else -1)
+                    add_arrow(origin, d, color, is_moment)
+                    
+                    # ONLY ADD LABEL IF SELECTED
+                    if is_selected:
+                        l_type = "Moment" if is_moment else "Force"
+                        self._add_load_label(origin, d, val, l_type, color)
 
-            if abs(load.fx) > 0:
-                d = np.array([1.0, 0, 0]) * (1 if load.fx > 0 else -1)
-                c = (0, 0.5, 1, 1)
-                add_arrow(origin, d, c, False)
-                self._add_load_label(origin, d, load.fx, "Force", c)
+            # Forces
+            process_component(load.fz, np.array([0, 0, 1.0]), (0, 1, 0, 1) if load.fz > 0 else (1, 0, 0, 1), False)
+            process_component(load.fx, np.array([1.0, 0, 0]), (0, 0.5, 1, 1), False)
+            process_component(load.fy, np.array([0, 1.0, 0]), (0, 0.5, 1, 1), False)
 
-            if abs(load.fy) > 0:
-                d = np.array([0, 1.0, 0]) * (1 if load.fy > 0 else -1)
-                c = (0, 0.5, 1, 1)
-                add_arrow(origin, d, c, False)
-                self._add_load_label(origin, d, load.fy, "Force", c)
-
-            if abs(load.mz) > 0:
-                d = np.array([0, 0, 1.0]) * (1 if load.mz > 0 else -1)
-                c = (1, 0.5, 0, 1)         
-                add_arrow(origin, d, c, True)
-                self._add_load_label(origin, d, load.mz, "Moment", c)
-
-            if abs(load.mx) > 0:
-                d = np.array([1.0, 0, 0]) * (1 if load.mx > 0 else -1)
-                c = (1, 0.5, 0, 1)
-                add_arrow(origin, d, c, True)
-                self._add_load_label(origin, d, load.mx, "Moment", c)
-
-            if abs(load.my) > 0:
-                d = np.array([0, 1.0, 0]) * (1 if load.my > 0 else -1)
-                c = (1, 0.5, 0, 1)
-                add_arrow(origin, d, c, True)
-                self._add_load_label(origin, d, load.my, "Moment", c)
+            # Moments
+            c_mom = (1, 0.5, 0, 1)
+            process_component(load.mz, np.array([0, 0, 1.0]), c_mom, True)
+            process_component(load.mx, np.array([1.0, 0, 0]), c_mom, True)
+            process_component(load.my, np.array([0, 1.0, 0]), c_mom, True)
 
         if arrow_lines:
-            self.addItem(gl.GLLinePlotItem(pos=np.array(arrow_lines), color=np.array(arrow_colors), mode='lines', width=2, antialias=True))
-            
+            self.addItem(gl.GLLinePlotItem(
+                pos=np.array(arrow_lines), 
+                color=np.array(arrow_colors), 
+                mode='lines', width=2, antialias=True
+            ))
+
     def _add_load_label(self, origin, direction, val, l_type, color):
         if l_type == "Moment":
             m_scale = unit_registry.force_scale * unit_registry.length_scale
@@ -1819,26 +1801,20 @@ class MCanvas3D(gl.GLViewWidget):
         if self.is_selecting and self.drag_start and self.drag_current:
             x1, y1 = self.drag_start.x(), self.drag_start.y()
             x2, y2 = self.drag_current.x(), self.drag_current.y()
-            w = x2 - x1
-            h = y2 - y1
-            rect = QRect(min(x1, x2), min(y1, y2), abs(w), abs(h))
+            w_sel = x2 - x1
+            h_sel = y2 - y1
+            rect = QRect(min(x1, x2), min(y1, y2), abs(w_sel), abs(h_sel))
             
-            if w > 0:
-                c = QColor(0, 0, 255, 50)
-                border = QColor(0, 0, 255, 200)
+            if w_sel > 0:
+                c = QColor(0, 0, 255, 50); border = QColor(0, 0, 255, 200)
             else:
-                c = QColor(0, 255, 0, 50)
-                border = QColor(0, 255, 0, 200)
+                c = QColor(0, 255, 0, 50); border = QColor(0, 255, 0, 200)
             
             painter.setBrush(c)
             painter.setPen(QPen(border, 1, Qt.PenStyle.SolidLine))
             painter.drawRect(rect)
         
         if self.load_labels and self.current_model:
-                                    
-            font = painter.font()
-            font.setPointSize(10)
-            painter.setFont(font)
             
             w = self.width()
             h = self.height()
@@ -1847,38 +1823,53 @@ class MCanvas3D(gl.GLViewWidget):
             m_proj = self.projectionMatrix(region=full_area, viewport=full_area)
             mvp = np.array((m_proj * m_view).data()).reshape(4, 4).T
             
+
+            TEXT_WORLD_HEIGHT = 0.35
+            
+            font = painter.font()
+            
             for label in self.load_labels:
                 pos_3d = label['pos_3d']
-                screen_pos = self._project_to_screen(pos_3d[0], pos_3d[1], pos_3d[2], mvp, w, h)
                 
-                if screen_pos:                        
-                    sx, sy = screen_pos
-                    
-                    r, g, b = label['color'][:3]
-                    text_color = QColor(int(r*255), int(g*255), int(b*255))
-        
-                    text = label['text']
-                    metrics = painter.fontMetrics()
-                    text_width = metrics.horizontalAdvance(text)
-                    text_height = metrics.height()
-                    
-                    text_x = int(sx) + 10
-                    text_y = int(sy) - 5
-                    
-                    padding = 3
-                    bg_rect = QRect(
-                        text_x - padding, 
-                        text_y - text_height + padding, 
-                        text_width + padding * 2, 
-                        text_height
-                    )
-                    painter.fillRect(bg_rect, QColor(255, 255, 255, 220))                              
-                    
-                    painter.setPen(QPen(QColor(200, 200, 200), 1))
-                    painter.drawRect(bg_rect)
-                    
-                    painter.setPen(text_color)
-                    painter.drawText(text_x, text_y, text)
+                vec = np.array([pos_3d[0], pos_3d[1], pos_3d[2], 1.0])
+                clip = np.dot(mvp, vec)
+                
+                if clip[3] <= 0.1: continue 
+
+                ndc_x = clip[0] / clip[3]
+                ndc_y = clip[1] / clip[3]
+                sx = (ndc_x + 1) * w / 2
+                sy = (1 - ndc_y) * h / 2
+                
+                if sx < -50 or sx > w + 50 or sy < -50 or sy > h + 50:
+                    continue
+
+                px_size = (h * TEXT_WORLD_HEIGHT) / (clip[3] * 1.2)
+                
+                if px_size < 6: 
+                    continue
+                
+                if px_size > 60: px_size = 60
+
+                font.setPixelSize(int(px_size))
+                painter.setFont(font)
+
+                r, g, b = label['color'][:3]
+                text_color = QColor(int(r*255), int(g*255), int(b*255))
+    
+                text = label['text']
+                metrics = painter.fontMetrics()
+                t_width = metrics.horizontalAdvance(text)
+                t_height = metrics.height()
+                
+                text_x = int(sx) + 5
+                text_y = int(sy) - 5
+                
+                bg_rect = QRect(text_x - 2, text_y - t_height + 2, t_width + 4, t_height)
+                painter.fillRect(bg_rect, QColor(255, 255, 255, 180))                              
+                
+                painter.setPen(text_color)
+                painter.drawText(text_x, text_y, text)
         
         painter.end()
 
@@ -1958,118 +1949,170 @@ class MCanvas3D(gl.GLViewWidget):
         super().keyPressEvent(event)
         event.ignore()
 
+    
     def _draw_member_loads(self, model):
         """
-        Visualizes Distributed Loads (Global and Local).
+        Visualizes Distributed Loads (Ghost Fill Style).
+        - Unselected: Faint colored curtain ONLY.
+        - Selected: Full detail + Text with Units.
         """
         if not model.loads: return
         if not self.show_loads: return
         if self.load_type_filter == "nodal": return
         
-        load_lines = []
-        load_colors = []
+        sel_verts = []; sel_colors = []; sel_faces = []
+        sel_idx_counter = 0
+        sel_lines = []; sel_line_colors = []
+
+        ghost_verts = []; ghost_colors = []; ghost_faces = []
+        ghost_idx_counter = 0
+
+        scale = 0.75
+        arrow_h = 0.3
         
-        scale = 1.5 
-        arrow_h = 0.3 
-        
+        c_grav_ghost = (1, 0, 0, 0.2)
+        c_local_ghost = (0, 1, 0, 0.2)
+        c_other_ghost = (0, 0.5, 1, 0.2)
+
+        c_grav_sel_fill = (1, 0, 0, 0.4); c_grav_line = (1, 0, 0, 1.0)
+        c_local_sel_fill = (0, 1, 0, 0.4); c_local_line = (0, 1, 0, 1.0)
+        c_other_sel_fill = (0, 0.5, 1, 0.4); c_other_line = (0, 0.5, 1, 1.0)
+
         for load in model.loads:
             if not hasattr(load, 'wx'): continue
             if not hasattr(load, 'element_id'): continue
             if self.visible_load_patterns and load.pattern_name not in self.visible_load_patterns:
                 continue
+            
             el = model.elements.get(load.element_id)
             if not el: continue
             
-            n1, n2 = el.node_i, el.node_j
-            if not (self._is_visible(n1.x, n1.y, n1.z) and self._is_visible(n2.x, n2.y, n2.z)):
-                continue
+            v1 = self._get_visibility_state(el.node_i.x, el.node_i.y, el.node_i.z)
+            v2 = self._get_visibility_state(el.node_j.x, el.node_j.y, el.node_j.z)
+            if v1 != 2 or v2 != 2: continue
 
-            p1 = np.array([n1.x, n1.y, n1.z])
-            p2 = np.array([n2.x, n2.y, n2.z])
-            
+            is_selected = (el.id in self.selected_element_ids)
+
+            p1 = np.array([el.node_i.x, el.node_i.y, el.node_i.z])
+            p2 = np.array([el.node_j.x, el.node_j.y, el.node_j.z])
             beam_vec = p2 - p1
             beam_len = np.linalg.norm(beam_vec)
             if beam_len == 0: continue
             beam_dir = beam_vec / beam_len 
             
             raw_w = [load.wx, load.wy, load.wz]
-            
-            v1, v2, v3 = self._get_consistent_axes(el) 
+            v1_ax, v2_ax, v3_ax = self._get_consistent_axes(el) 
 
             for axis_idx in range(3):
                 val = raw_w[axis_idx]
                 if abs(val) < 1e-6: continue
+
+                base_height = 0.5
+                growth_factor = 0.2
                 
+                magnitude = max(1.0, abs(val))
+                
+                scale = base_height + (np.log10(magnitude) * growth_factor)
+                
+                if scale > 1.5: scale = 1.5 
+
+
                 sign = 1 if val > 0 else -1
                 
                 if load.coord_system == "Local":
-                                                                         
-                    if axis_idx == 0: load_vec = v1 
-                    elif axis_idx == 1: load_vec = v2
-                    elif axis_idx == 2: load_vec = v3
+                    if axis_idx == 0: load_vec = v1_ax 
+                    elif axis_idx == 1: load_vec = v2_ax
+                    elif axis_idx == 2: load_vec = v3_ax
+                    c_fill_sel, c_line, c_ghost = c_local_sel_fill, c_local_line, c_local_ghost
                 else:         
-                    load_vec = np.zeros(3)
-                    load_vec[axis_idx] = 1.0                    
+                    load_vec = np.zeros(3); load_vec[axis_idx] = 1.0  
+                    if axis_idx == 2 and sign < 0:
+                        c_fill_sel, c_line, c_ghost = c_grav_sel_fill, c_grav_line, c_grav_ghost
+                    else:
+                        c_fill_sel, c_line, c_ghost = c_other_sel_fill, c_other_line, c_other_ghost
 
                 offset_vec = -1 * sign * load_vec * scale 
-                
                 cross_prod = np.cross(beam_dir, load_vec)
                 is_parallel = np.linalg.norm(cross_prod) < 0.01
-
                 visual_shift = np.zeros(3)
-                if is_parallel:
-                                                                 
-                    visual_shift = v2 * 0.5 
+                if is_parallel: visual_shift = v2_ax * 0.5 
 
-                comb_start = p1 + offset_vec + visual_shift
-                comb_end   = p2 + offset_vec + visual_shift
-                
-                if load.coord_system == "Global" and axis_idx == 2 and sign < 0:
-                    c = (1, 0, 0, 1)              
-                elif load.coord_system == "Local":
-                    c = (0, 1, 0, 1)              
-                else:
-                    c = (0, 0.5, 1, 1)       
+                pt_base_1 = p1 + visual_shift
+                pt_base_2 = p2 + visual_shift
+                pt_top_1  = p1 + offset_vec + visual_shift
+                pt_top_2  = p2 + offset_vec + visual_shift
 
-                load_lines.extend([comb_start, comb_end])
-                load_colors.extend([c, c])
-                
-                num_arrows = max(3, int(beam_len))
-                
+
+                if not is_selected:
+                    ghost_verts.extend([pt_base_1, pt_base_2, pt_top_2, pt_top_1])
+                    idx = ghost_idx_counter
+                    ghost_faces.append([idx, idx+1, idx+2])
+                    ghost_faces.append([idx, idx+2, idx+3])
+                    for _ in range(4): ghost_colors.append(c_ghost)
+                    ghost_idx_counter += 4
+                    continue 
+
+                sel_verts.extend([pt_base_1, pt_base_2, pt_top_2, pt_top_1])
+                idx = sel_idx_counter
+                sel_faces.append([idx, idx+1, idx+2])
+                sel_faces.append([idx, idx+2, idx+3])
+                for _ in range(4): sel_colors.append(c_fill_sel)
+                sel_idx_counter += 4
+
+                sel_lines.extend([pt_top_1, pt_top_2, pt_top_1, pt_base_1, pt_top_2, pt_base_2])
+                for _ in range(6): sel_line_colors.append(c_line)
+
                 if is_parallel: spread_vec = np.cross(beam_dir, visual_shift)
                 else: spread_vec = cross_prod
-                
                 if np.linalg.norm(spread_vec) > 0:
                     spread_vec = (spread_vec / np.linalg.norm(spread_vec)) * 0.2
                 else: spread_vec = np.array([0.2, 0, 0])
 
-                for i in range(num_arrows + 1):
-                    t = i / num_arrows
-                    pt_beam = p1 + (beam_vec * t) + visual_shift
-                    pt_comb = comb_start + (beam_vec * t)
-                    
-                    load_lines.extend([pt_comb, pt_beam])
-                    load_colors.extend([c, c])
-                    
-                    head_base = pt_beam - (sign * load_vec * arrow_h)
-                    load_lines.extend([pt_beam, head_base + spread_vec])
-                    load_lines.extend([pt_beam, head_base - spread_vec])
-                    for _ in range(4): load_colors.append(c)
+                pt_mid = (pt_base_1 + pt_base_2) / 2
+                arrow_base = pt_mid - (sign * load_vec * arrow_h)
                 
+                sel_lines.extend([pt_mid, arrow_base + spread_vec, pt_mid, arrow_base - spread_vec])
+                for _ in range(4): sel_line_colors.append(c_line)
+
+
                 display_val = val * unit_registry.force_scale / unit_registry.length_scale
-
-                mid = (comb_start + comb_end) / 2
-
+                unit_str = unit_registry.distributed_load_unit
+                mid_height = (pt_top_1 + pt_top_2) / 2
+                
                 self.load_labels.append({
-                    'pos_3d': mid.tolist(),                               
-                    'text': f"{display_val:.3f} {unit_registry.distributed_load_unit}",
-                    'color': c                                         
+                    'pos_3d': mid_height.tolist(),                               
+                    'text': f"{display_val:.2f} {unit_str}",  
+                    'color': c_line                                         
                 })
 
-        if load_lines:
-            self.addItem(gl.GLLinePlotItem(pos=np.array(load_lines), 
-                                           color=np.array(load_colors), 
-                                           mode='lines', width=2, antialias=True))
+        if ghost_verts:
+            mesh_ghost = gl.GLMeshItem(
+                vertexes=np.array(ghost_verts, dtype=np.float32),
+                faces=np.array(ghost_faces, dtype=np.int32),
+                vertexColors=np.array(ghost_colors, dtype=np.float32),
+                smooth=False, shader='balloon', glOptions='translucent'
+            )
+            self.addItem(mesh_ghost)
+            self.element_items.append(mesh_ghost)
+
+        if sel_verts:
+            mesh_sel = gl.GLMeshItem(
+                vertexes=np.array(sel_verts, dtype=np.float32),
+                faces=np.array(sel_faces, dtype=np.int32),
+                vertexColors=np.array(sel_colors, dtype=np.float32),
+                smooth=False, shader='balloon', glOptions='translucent'
+            )
+            self.addItem(mesh_sel)
+            self.element_items.append(mesh_sel) 
+
+        if sel_lines:
+            lines = gl.GLLinePlotItem(
+                pos=np.array(sel_lines), color=np.array(sel_line_colors), 
+                mode='lines', width=2, antialias=True
+            )
+            self.addItem(lines)
+            self.element_items.append(lines)
+
 
     def _draw_local_axes(self, model):
         """Draws RGB arrows at the center of each element representing local axes."""
@@ -2165,8 +2208,8 @@ class MCanvas3D(gl.GLViewWidget):
     def _draw_member_point_loads(self, model):
         """
         Visualizes Member Point Loads.
-        - Force: Single Flat Arrow
-        - Moment: Double Flat Arrow
+        - Always: Draws Arrow geometry (Force or Moment).
+        - Selected: Draws Text Label with Units.
         """
         if not model.loads: return
         if not self.show_loads: return
@@ -2178,16 +2221,21 @@ class MCanvas3D(gl.GLViewWidget):
         L = 2.0; H = 0.5; W = 0.2
 
         for load in model.loads:
+
             if not hasattr(load, 'force'): continue 
             if self.visible_load_patterns and load.pattern_name not in self.visible_load_patterns: continue
 
             el = model.elements.get(load.element_id)
             if not el: continue
-            n1, n2 = el.node_i, el.node_j
-            if not (self._is_visible(n1.x, n1.y, n1.z) and self._is_visible(n2.x, n2.y, n2.z)): continue
+            
+            v1 = self._get_visibility_state(el.node_i.x, el.node_i.y, el.node_i.z)
+            v2 = self._get_visibility_state(el.node_j.x, el.node_j.y, el.node_j.z)
+            if v1 != 2 or v2 != 2: continue
 
-            p1 = np.array([n1.x, n1.y, n1.z])
-            p2 = np.array([n2.x, n2.y, n2.z])
+            is_selected = (el.id in self.selected_element_ids)
+
+            p1 = np.array([el.node_i.x, el.node_i.y, el.node_i.z])
+            p2 = np.array([el.node_j.x, el.node_j.y, el.node_j.z])
             beam_vec = p2 - p1
             beam_len = np.linalg.norm(beam_vec)
             if beam_len == 0: continue
@@ -2209,6 +2257,7 @@ class MCanvas3D(gl.GLViewWidget):
 
             val = load.force
             if val == 0: continue
+            
             draw_dir = dir_vec * (1.0 if val > 0 else -1.0)
             norm = np.linalg.norm(draw_dir)
             if norm > 0: draw_dir /= norm
@@ -2216,9 +2265,12 @@ class MCanvas3D(gl.GLViewWidget):
             is_moment = hasattr(load, 'load_type') and load.load_type == "Moment"
             
             if is_moment: c = (1, 0.5, 0, 1)         
-            elif "Gravity" in load.direction or (load.coord_system=="Global" and "Z" in load.direction and val < 0): c = (1, 0, 0, 1)      
-            elif load.coord_system == "Local": c = (0, 1, 0, 1)        
-            else: c = (0, 0.5, 1, 1)       
+            elif "Gravity" in load.direction or (load.coord_system=="Global" and "Z" in load.direction and val < 0): 
+                c = (1, 0, 0, 1)      
+            elif load.coord_system == "Local": 
+                c = (0, 1, 0, 1)        
+            else: 
+                c = (0, 0.5, 1, 1)       
 
             tip = load_pos
             tail = tip - (draw_dir * L)
@@ -2226,14 +2278,11 @@ class MCanvas3D(gl.GLViewWidget):
             arrow_colors.append(c); arrow_colors.append(c)
 
             def add_head(base_pt):
-                                             
                 if abs(draw_dir[2]) > 0.9: perp = np.array([1.0, 0.0, 0.0])
                 elif abs(draw_dir[1]) > 0.9: perp = np.array([1.0, 0.0, 0.0])
                 else: perp = np.array([0.0, 0.0, 1.0])
-                
                 w_vec = perp * W
                 base = base_pt - (draw_dir * H)
-                
                 arrow_lines.append(base_pt); arrow_lines.append(base + w_vec)
                 arrow_lines.append(base_pt); arrow_lines.append(base - w_vec)
                 for _ in range(4): arrow_colors.append(c)
@@ -2242,10 +2291,16 @@ class MCanvas3D(gl.GLViewWidget):
             if is_moment:
                 add_head(tip - (draw_dir * (H * 0.8)))
 
-            self._add_load_label(load_pos, draw_dir, val, "Moment" if is_moment else "Force", c)
+            if is_selected:
+                self._add_load_label(load_pos, draw_dir, val, "Moment" if is_moment else "Force", c)
 
         if arrow_lines:
-            self.addItem(gl.GLLinePlotItem(pos=np.array(arrow_lines), color=np.array(arrow_colors), mode='lines', width=2.0, antialias=True))
+            self.addItem(gl.GLLinePlotItem(
+                pos=np.array(arrow_lines), 
+                color=np.array(arrow_colors), 
+                mode='lines', width=2.0, antialias=True
+            ))
+
 
     def show_pivot_dot(self, visible=True):
         if visible:
