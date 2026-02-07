@@ -3,3 +3,5 @@ __pycache__/
 *.pyo
 *.pyd
 .vscode/
+Example_Project/SapTest/tesss_matrices.json
+Example_Project/SapTest/tesss_results.json
