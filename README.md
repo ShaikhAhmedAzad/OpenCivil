@@ -35,7 +35,7 @@ Unlike commercial software, OpenCivil lets you see everything:
 - **12×12 Element Stiffness Matrices [k]** in local coordinates
 - **Transformation Matrices [T]** showing global-to-local conversion
 - **Fixed End Forces (FEF)** from distributed and point loads
-- **Matrix Spy Tool** - Export matrices as JSON for external analysis
+- **Matrix Tool** - Export matrices as JSON for external analysis
 - **Free Body Diagrams** for each element showing internal forces
 
 ### 🏗️ **Advanced Structural Modeling**
@@ -162,7 +162,7 @@ Choose: Linear Static / Modal / Response Spectrum
 - **Animation**: Display > Animate Deformed Shape
 - **Reactions**: Display > Show Reactions Table
 - **Element Forces**: Right-click element > View Free Body Diagram
-- **Matrices**: Right-click element > Matrix Spy
+- **Matrices**: Right-click element > Matrix
 
 ---
 
@@ -197,7 +197,7 @@ The `/Example_Project/` folder contains:
 
 ## 🔧 Advanced Features
 
-### Matrix Spy Tool
+### Matrix Tool
 Export element matrices to JSON:
 ```json
 {
@@ -291,7 +291,7 @@ Civil Engineering Student | Middle East Technical University (METU)
 | Feature | Preview |
 |---------|---------|
 | **3D Modeling** | ![Modeling](images/hero-main.png) |
-| **Matrix Spy** | Shows 12×12 stiffness matrix in spreadsheet view |
+| **Matrix** | Shows 12×12 stiffness matrix in spreadsheet view |
 | **Deformed Shape** | ![Results](images/feature-3.png) |
 | **Modal Animation** | Breathing effect showing mode shapes |
 | **Response Spectrum** | TBDY 2018 spectrum curves with modal combination |
