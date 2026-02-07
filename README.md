@@ -33,16 +33,16 @@ All analysis implementations have been independently verified against industry-s
 | | Base shear calculations | ✅ Verified |
 
 ### Advanced Features Validated:
-- ✅ Cardinal insertion points (all 11 positions)
+- ✅ Cardinal insertion points 
 - ✅ Rigid end offsets
-- ✅ Member releases (moment/shear/axial)
+- ✅ Member releases (moment release for now)
 - ✅ Eccentric connections
 - ✅ Self-weight
 - ✅ 3D Timoshenko beam theory with shear deformation
 
 ### Example: Multi-Story Building Test Case
 
-A complex 3-story steel frame structure (200+ nodes) was modeled and analyzed:
+A 3-story steel frame structure (200+ nodes) was modeled and analyzed:
 
 #### Modal Analysis Validation
 ![Modal Analysis Validation](images/validation/Modal_Validation.png)
@@ -203,19 +203,19 @@ File > New Model > Define grid lines (X, Y, Z)
 
 ### 2. Define Materials & Sections
 ```
-Define > Material Properties > Add (e.g., Concrete C30, Steel S275)
-Define > Section Properties > Add I-Beam or Rectangular
+Define > Material Properties... > Add (e.g., Concrete C30, Steel S275)
+Define > Section Properties... > Add I-Beam or Rectangular
 ```
 
 ### 3. Draw Structure
 ```
-Draw > Frame Elements > Click start node, drag to end node
+Draw > Draw Frame/Cable > Click start node, drag to end node
 ```
 
 ### 4. Assign Properties
-- **Restraints**: Select nodes → Assign > Joint Restraints
-- **Loads**: Select elements → Assign > Frame Loads
-- **Releases**: Select elements → Assign > Frame Releases
+- **Restraints**: Select nodes → Assign > Joint Restraints...
+- **Loads**: Select elements → Assign > Frame Loads...
+- **Releases**: Select elements → Assign > Releases Partial Fixity...
 
 ### 5. Define Analysis Case
 ```
@@ -285,7 +285,7 @@ Export element matrices to JSON:
 Define your own spectrum function:
 ```
 Define > Functions > Response Spectrum
-Enter Period-Acceleration pairs
+Enter Ss and S1 values from Turkish Hazard Map
 ```
 
 ### Load Combinations
@@ -366,7 +366,7 @@ Civil Engineering Student | Middle East Technical University (METU)
 |---------|---------|
 | **3D Modeling** | ![Modeling](images/hero-main.png) |
 | **Matrix Spy** | Shows 12×12 stiffness matrix in spreadsheet view |
-| **Deformed Shape** | ![Results](images/feature-3.png) |
+| **Deformed Shape** | ![Results](images/deformed_shape.png) |
 | **Modal Animation** | Breathing effect showing mode shapes |
 | **Response Spectrum** | TBDY 2018 spectrum curves with modal combination |
 | **Validation** | Side-by-side comparison with commercial software (see `/images/validation/`) |
