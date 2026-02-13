@@ -199,10 +199,10 @@ class ViewCube:
                 highlight = 1.1 if facing_factor > 0.9 else 1.0
                 
                 glColor4f(
-                    min(0.7, c[0] * light_intensity * highlight), 
-                    min(0.7, c[1] * light_intensity * highlight), 
-                    min(0.7, c[2] * light_intensity * highlight), 
-                    1.0
+                    min(1.0, c[0] * light_intensity * highlight), 
+                    min(1.0, c[1] * light_intensity * highlight), 
+                    min(1.0, c[2] * light_intensity * highlight), 
+                    0.5
                 )
                 glVertex3fv(self.vertices[idx])
             glEnd()
