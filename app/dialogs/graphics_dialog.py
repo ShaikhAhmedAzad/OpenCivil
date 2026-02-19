@@ -59,9 +59,25 @@ class GraphicsOptionsDialog(QDialog):
         h_bg.addWidget(self.btn_bg)
         v_gen.addLayout(h_bg)
 
-        self.chk_aa = QCheckBox("Enable Anti-aliasing (Smoother lines)")
-        self.chk_aa.setChecked(self.settings.get("antialias", True))
-        v_gen.addWidget(self.chk_aa)
+        h_aa = QHBoxLayout()
+        h_aa.addWidget(QLabel("Anti-aliasing (MSAA):"))
+        self.sl_aa = QSlider(Qt.Orientation.Horizontal)
+        self.sl_aa.setRange(0, 3)  
+        self.sl_aa.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.sl_aa.setValue(self.settings.get("msaa_level", 2))
+        h_aa.addWidget(self.sl_aa)
+        self.lbl_aa = QLabel("8x")
+        h_aa.addWidget(self.lbl_aa)
+        self.sl_aa.valueChanged.connect(self._on_aa_changed)
+        v_gen.addLayout(h_aa)
+        lbl_note = QLabel("⚠️ Changes apply after restart")
+        lbl_note.setStyleSheet("color: gray; font-size: 10px;")
+        v_gen.addWidget(lbl_note)
+
+        self.btn_restart = QPushButton("Restart Now")
+        self.btn_restart.setStyleSheet("color: black; background-color: #ffffff; padding: 4px 8px;")
+        self.btn_restart.clicked.connect(self._on_restart)
+        v_gen.addWidget(self.btn_restart)
         
         v_gen.addStretch()
         self.tabs.addTab(tab_gen, "General")
@@ -168,11 +184,32 @@ class GraphicsOptionsDialog(QDialog):
         h_btns.addWidget(self.btn_apply)
         layout.addLayout(h_btns)
 
+    def _on_aa_changed(self, val):
+        labels = {0: "Off", 1: "4x", 2: "8x", 3: "16x"}
+        self.lbl_aa.setText(labels[val])
+        
+
+    def _on_restart(self):
+        import subprocess, sys, os
+        if self.parent() and hasattr(self.parent(), "update_graphics_settings"):
+            self.parent().update_graphics_settings(self.get_settings())
+        
+        args = [sys.executable] + sys.argv
+        if self.parent() and hasattr(self.parent(), "model"):
+            file_path = getattr(self.parent().model, "file_path", None)
+            if file_path and os.path.exists(file_path):
+                if hasattr(self.parent(), "on_save_model"):
+                    self.parent().on_save_model()
+                args = [sys.executable, sys.argv[0], file_path]
+        
+        subprocess.Popen(args)
+        self.parent().close()
+
     def get_settings(self):
         """Collects all values from widgets and returns the dict."""
         return {
             "background_color": self.btn_bg.get_color_tuple(),
-            "antialias": self.chk_aa.isChecked(),
+            "msaa_level": self.sl_aa.value(),
             
             "node_size": self.spin_node_size.value(),
             "node_color": self.btn_node_col.get_color_tuple(),

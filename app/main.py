@@ -162,6 +162,7 @@ class MainWindow(QMainWindow):
             "line_width": 2.0,
             "extrude_opacity": 0.35,
             "show_edges": False,
+            "msaa_level": 2,
             "edge_width": 1.5,
             "edge_color": (0.0, 0.0, 0.0, 1.0),      
             "slab_opacity": 0.4
@@ -417,8 +418,12 @@ class MainWindow(QMainWindow):
         self.canvas.signal_canvas_clicked.connect(self.handle_canvas_click) 
         self.canvas.signal_right_clicked.connect(self.handle_right_click) 
         self.canvas.signal_box_selection.connect(self.handle_box_selection)
+        self.canvas.signal_mouse_moved.connect(self.on_mouse_moved)
         
         self.setup_statusbar()
+
+    def on_mouse_moved(self, x, y, z):
+        self.lbl_coords.setText(f"X: {x:.2f}  Y: {y:.2f}  Z: {z:.2f}")
 
     def setup_statusbar(self):
         
@@ -587,7 +592,14 @@ class MainWindow(QMainWindow):
                     self.graphics_settings.update(self.model.graphics_settings)
                     
                     self.update_graphics_settings(self.graphics_settings)
-                
+
+                    self.canvas.view_extruded = self.graphics_settings.get('view_extruded', False)
+                    self.canvas.show_slabs = self.graphics_settings.get('show_slabs', True)
+                    self.canvas.show_joints = self.graphics_settings.get('show_joints', True)
+                    self.canvas.show_supports = self.graphics_settings.get('show_supports', True)
+                    self.canvas.show_loads = self.graphics_settings.get('show_loads', True)
+                    self.canvas.show_local_axes = self.graphics_settings.get('show_local_axes', False)
+
                 if hasattr(self.model, 'saved_unit_system'):
                     self.combo_units.blockSignals(True)
                     self.combo_units.setCurrentText(self.model.saved_unit_system)
@@ -618,6 +630,15 @@ class MainWindow(QMainWindow):
             if not filename.endswith(".mf"): filename += ".mf"
             try:
                 self.model.graphics_settings = self.graphics_settings
+
+                self.graphics_settings['view_extruded'] = self.canvas.view_extruded
+                self.graphics_settings['show_slabs'] = self.canvas.show_slabs
+                self.graphics_settings['show_joints'] = self.canvas.show_joints
+                self.graphics_settings['show_supports'] = self.canvas.show_supports
+                self.graphics_settings['show_loads'] = self.canvas.show_loads
+                self.graphics_settings['show_local_axes'] = self.canvas.show_local_axes
+                self.model.graphics_settings = self.graphics_settings
+
                 self.model.save_to_file(filename)
                 self.model.file_path = filename
                 
@@ -668,7 +689,8 @@ class MainWindow(QMainWindow):
         self.draw_mode_active = False
         self.canvas.snapping_enabled = False 
         self.draw_start_node = None
-        
+        self.canvas.hide_preview_line()
+        self.canvas._draw_start = None
         self.canvas.snap_ring.setVisible(False)
         self.canvas.snap_dot.setVisible(False)
         
@@ -696,24 +718,19 @@ class MainWindow(QMainWindow):
                 self.status.showMessage("Replicate values set.")
             return                        
         if not self.draw_mode_active: return
-        clicked_node = None
-                                
-        for node in self.model.nodes.values():
-            if abs(node.x - x) < 0.001 and abs(node.y - y) < 0.001 and abs(node.z - z) < 0.001:
-                clicked_node = node
-                break
-        
-        if clicked_node is None:
-            clicked_node = self.model.add_node(x, y, z)
-
         clicked_node = self.model.get_or_create_node(x, y, z)
             
         if self.draw_start_node is None:
             self.draw_start_node = clicked_node
+            self.canvas._draw_start = (clicked_node.x, clicked_node.y, clicked_node.z)
             self.status.showMessage(f"Start Node {clicked_node.id} Selected. Select End Point...")
         else:
             end_node = clicked_node
-            if end_node == self.draw_start_node: return 
+            dx = end_node.x - self.draw_start_node.x
+            dy = end_node.y - self.draw_start_node.y
+            dz = end_node.z - self.draw_start_node.z
+            if (dx**2 + dy**2 + dz**2) < 0.001:
+                return
             
             section = self.draw_dialog.get_selected_section()
             if section:
@@ -725,13 +742,32 @@ class MainWindow(QMainWindow):
                 self.add_command(cmd)
                 
                 self.draw_start_node = self.model.get_or_create_node(*p2)
+                self.canvas._draw_start = (self.draw_start_node.x, self.draw_start_node.y, self.draw_start_node.z)
                 
                 self.status.showMessage(f"Element Drawn. Next Start: Node {end_node.id}...")
             else:
                 self.status.showMessage("Error: No Section Selected")
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            if self.draw_mode_active:
+                if self.draw_dialog:
+                    self.draw_dialog.hide()
+                self.on_draw_finished()
+        
+        elif event.key() == Qt.Key.Key_Delete:
+            if getattr(self, 'is_locked', False):
+                self.status.showMessage("⚠️ Cannot delete objects while Analysis Results are active. Unlock model first.")
+                return
+            self.delete_current_selection()
+        
+        super().keyPressEvent(event)
+        
+
     def handle_right_click(self):
         if self.draw_mode_active:
+            self.canvas.hide_preview_line()
+            self.canvas._draw_start = None
             if self.draw_start_node:
                 self.draw_start_node = None
                 self.status.showMessage("Chain Broken. Select a new Start Point...")
@@ -837,39 +873,30 @@ class MainWindow(QMainWindow):
             self.canvas.draw_model(self.model)
             self.status.showMessage("Grid System Updated.")
 
-    def handle_box_selection(self, node_ids, elem_ids, is_additive):
-        hit_something = (len(node_ids) > 0) or (len(elem_ids) > 0)
-        if hit_something:
+    def handle_box_selection(self, node_ids, elem_ids, is_additive, is_deselect):
+        if is_deselect:
             for nid in node_ids:
-                if nid not in self.selected_node_ids: self.selected_node_ids.append(nid)
+                if nid in self.selected_node_ids:
+                    self.selected_node_ids.remove(nid)
             for eid in elem_ids:
-                if eid not in self.selected_ids: self.selected_ids.append(eid)
-            self.status.showMessage(f"Selected: {len(self.selected_ids)} Frames, {len(self.selected_node_ids)} Joints")
+                if eid in self.selected_ids:
+                    self.selected_ids.remove(eid)
+            self.status.showMessage(f"Selection: {len(self.selected_ids)} Frames, {len(self.selected_node_ids)} Joints")
         else:
-            if not is_additive: 
-                self.selected_ids = []
-                self.selected_node_ids = []
-                self.status.showMessage("Selection Cleared")
+            hit_something = (len(node_ids) > 0) or (len(elem_ids) > 0)
+            if hit_something:
+                for nid in node_ids:
+                    if nid not in self.selected_node_ids: self.selected_node_ids.append(nid)
+                for eid in elem_ids:
+                    if eid not in self.selected_ids: self.selected_ids.append(eid)
+                self.status.showMessage(f"Selected: {len(self.selected_ids)} Frames, {len(self.selected_node_ids)} Joints")
+            else:
+                if not is_additive:
+                    self.selected_ids = []
+                    self.selected_node_ids = []
+                    self.status.showMessage("Selection Cleared")
+        
         self.canvas.draw_model(self.model, self.selected_ids, self.selected_node_ids)
-
-        if len(node_ids) == 1 and not elem_ids:
-                           
-            nid = node_ids[0]
-            n = self.model.nodes[nid]
-            target = QVector3D(n.x, n.y, n.z)
-            self.canvas.camera.animate_to(target_center=target)
-            self.status.showMessage(f"Selected Node {nid} (Camera Focused)")
-            
-        elif len(elem_ids) == 1 and not node_ids:
-                                     
-            eid = elem_ids[0]
-            el = self.model.elements[eid]
-            mid_x = (el.node_i.x + el.node_j.x) / 2
-            mid_y = (el.node_i.y + el.node_j.y) / 2
-            mid_z = (el.node_i.z + el.node_j.z) / 2
-            target = QVector3D(mid_x, mid_y, mid_z)
-            self.canvas.camera.animate_to(target_center=target)
-            self.status.showMessage(f"Selected Frame {eid} (Camera Focused)")
 
     def delete_current_selection(self):
         if not self.model: return
@@ -1112,6 +1139,18 @@ class MainWindow(QMainWindow):
         Called by the Dialog's Apply/OK button.
         Updates the master dict and triggers a canvas refresh.
         """
+
+        import json, os
+        prefs_path = os.path.join(os.path.expanduser("~"), ".opencivil_prefs.json")
+        try:
+            with open(prefs_path, 'w') as f:
+                json.dump({"msaa_level": new_settings.get("msaa_level", 2)}, f)
+        except:
+            pass
+
+        msaa_samples = {0: 0, 1: 4, 2: 8, 3: 16}
+        level = new_settings.get("msaa_level", 2)
+        self.graphics_settings["msaa_level"] = level
                                    
         self.graphics_settings.update(new_settings)
         
@@ -1596,6 +1635,25 @@ def main():
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     app = QApplication(sys.argv)
+
+    from PyQt6.QtGui import QSurfaceFormat
+    import json, os
+
+    prefs_path = os.path.join(os.path.expanduser("~"), ".opencivil_prefs.json")
+    msaa_map = {0: 0, 1: 4, 2: 8, 3: 16}
+    msaa_level = 2  
+    if os.path.exists(prefs_path):
+        try:
+            with open(prefs_path) as f:
+                prefs = json.load(f)
+                msaa_level = prefs.get("msaa_level", 2)
+        except:
+            pass
+
+    fmt = QSurfaceFormat()
+    fmt.setSamples(msaa_map[msaa_level])
+    fmt.setDepthBufferSize(24)
+    QSurfaceFormat.setDefaultFormat(fmt)
     
     video_path = os.path.join(root_dir, "graphic", "Animation.gif")
     

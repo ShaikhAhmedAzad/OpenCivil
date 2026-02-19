@@ -12,8 +12,9 @@ from OpenGL.GL import *
 class MCanvas3D(gl.GLViewWidget):
     signal_canvas_clicked = pyqtSignal(float, float, float)
     signal_right_clicked = pyqtSignal()
-    signal_box_selection = pyqtSignal(list, list, bool)
+    signal_box_selection = pyqtSignal(list, list, bool, bool)
     signal_element_selected = pyqtSignal(int)
+    signal_mouse_moved = pyqtSignal(float, float, float)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -106,6 +107,18 @@ class MCanvas3D(gl.GLViewWidget):
         
         self.snap_ring.setVisible(False)
         self.snap_dot.setVisible(False)
+
+        self._draw_start = None  
+        self.preview_line = gl.GLLinePlotItem(
+            pos=np.array([[0,0,0],[0,0,0]]), 
+            mode='lines', 
+            color=(0.2, 0.6, 1.0, 0.6), 
+            width=3, 
+            antialias=True
+        )
+        self.preview_line.setGLOptions('translucent')
+        self.preview_line.setVisible(False)
+        self.addItem(self.preview_line)
 
     def _line_intersects_rect(self, p1, p2, rect):
         """
@@ -233,6 +246,7 @@ class MCanvas3D(gl.GLViewWidget):
 
         if self.snap_ring not in self.items: self.addItem(self.snap_ring)
         if self.snap_dot not in self.items: self.addItem(self.snap_dot)
+        if self.preview_line not in self.items: self.addItem(self.preview_line)
              
         self.snap_ring.setGLOptions('translucent')
         self.snap_dot.setGLOptions('translucent')
@@ -1708,17 +1722,11 @@ class MCanvas3D(gl.GLViewWidget):
  
         if hit:
             print("View Cube Clicked!")
-            # Logic to snap view goes here:
-            # self.set_standard_view("TOP")
-            return # Don't select beams if we clicked the cube
-
+            return 
 
         self._prev_mouse_pos = event.pos()
         modifiers = QApplication.keyboardModifiers()
         
-        if modifiers == Qt.KeyboardModifier.ShiftModifier:
-            super().mousePressEvent(event)
-            return
 
         if event.button() == Qt.MouseButton.LeftButton:
             if self.snapping_enabled:
@@ -1737,6 +1745,7 @@ class MCanvas3D(gl.GLViewWidget):
             self.signal_right_clicked.emit()
             super().mousePressEvent(event)
 
+    
     def mouseMoveEvent(self, event):
         if self.is_selecting:
             self.drag_current = event.pos()
@@ -1744,27 +1753,33 @@ class MCanvas3D(gl.GLViewWidget):
             return
 
         if event.buttons() == Qt.MouseButton.MiddleButton:
-                                                                                
-            pass
-
-        if event.buttons() == Qt.MouseButton.MiddleButton:
-                             
             if hasattr(self, '_prev_mouse_pos'):
                 dx = event.pos().x() - self._prev_mouse_pos.x()
                 dy = event.pos().y() - self._prev_mouse_pos.y()
-                self.camera.pan(dx, dy, self.width(), self.height())
+                modifiers = QApplication.keyboardModifiers()
+                if modifiers == Qt.KeyboardModifier.ShiftModifier:
+                    self.camera.rotate(dx, dy)
+                else:
+                    self.camera.pan(dx, dy, self.width(), self.height())
             self._prev_mouse_pos = event.pos()
-            
+
         elif event.buttons() == Qt.MouseButton.LeftButton:
-                                                                           
-             self.show_pivot_dot(True)
-             super().mouseMoveEvent(event)
-             
+            self.show_pivot_dot(True)
+            super().mouseMoveEvent(event)
+
         else:
-             super().mouseMoveEvent(event)
-             
-        self.get_snap_point(event.pos().x(), event.pos().y())
-        
+            super().mouseMoveEvent(event)
+
+        snap_pt = self.get_snap_point(event.pos().x(), event.pos().y())
+
+        if self._draw_start is not None and snap_pt is not None:
+            self.update_preview_line(self._draw_start, snap_pt)
+        else:
+            self.hide_preview_line()
+
+        if snap_pt is not None:
+            self.signal_mouse_moved.emit(snap_pt[0], snap_pt[1], snap_pt[2])
+
     def wheelEvent(self, event):
                          
         delta = event.angleDelta().y()
@@ -1944,7 +1959,9 @@ class MCanvas3D(gl.GLViewWidget):
 
         modifiers = QApplication.keyboardModifiers()
         is_additive = (modifiers == Qt.KeyboardModifier.ControlModifier)
-        self.signal_box_selection.emit(found_nodes, found_elems, is_additive)
+        is_deselect = (modifiers == Qt.KeyboardModifier.ShiftModifier)
+        self.signal_box_selection.emit(found_nodes, found_elems, is_additive, is_deselect)
+
     def _project_to_screen(self, x, y, z, mvp, w, h):
         vec = np.array([x, y, z, 1.0])
         clip = np.dot(mvp, vec)
@@ -2337,6 +2354,19 @@ class MCanvas3D(gl.GLViewWidget):
             self.pivot_timer.start(500)                                  
         else:
             self.pivot_dot.setVisible(False)
+
+
+    def update_preview_line(self, start, end):
+        """Updates the rubber-band preview line during draw mode."""
+        if start is None or end is None:
+            self.preview_line.setVisible(False)
+            return
+        pts = np.array([list(start), list(end)])
+        self.preview_line.setData(pos=pts)
+        self.preview_line.setVisible(True)
+
+    def hide_preview_line(self):
+        self.preview_line.setVisible(False)
 
     def _get_consistent_axes(self, el):
         """
