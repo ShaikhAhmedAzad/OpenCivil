@@ -20,7 +20,7 @@ class ArcballCamera:
     def rotate(self, dx, dy):
         """Standard Orbit Rotation"""
         self.view.opts['azimuth'] -= dx * 0.5
-        self.view.opts['elevation'] -= dy * 0.5
+        self.view.opts['elevation'] += dy * 0.5
         self.view.update()
         
         if hasattr(self.view, 'show_pivot_dot'):

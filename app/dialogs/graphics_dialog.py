@@ -189,19 +189,30 @@ class GraphicsOptionsDialog(QDialog):
         self.lbl_aa.setText(labels[val])
         
 
+    
+
     def _on_restart(self):
         import subprocess, sys, os
+        
         if self.parent() and hasattr(self.parent(), "update_graphics_settings"):
             self.parent().update_graphics_settings(self.get_settings())
         
-        args = [sys.executable] + sys.argv
+        file_path = None
         if self.parent() and hasattr(self.parent(), "model"):
             file_path = getattr(self.parent().model, "file_path", None)
             if file_path and os.path.exists(file_path):
                 if hasattr(self.parent(), "on_save_model"):
                     self.parent().on_save_model()
-                args = [sys.executable, sys.argv[0], file_path]
-        
+
+        if getattr(sys, 'frozen', False):
+            args = [sys.executable]
+            if file_path:
+                args.append(file_path)
+        else:
+            args = [sys.executable, sys.argv[0]]
+            if file_path:
+                args.append(file_path)
+
         subprocess.Popen(args)
         self.parent().close()
 
