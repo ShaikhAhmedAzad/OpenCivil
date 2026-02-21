@@ -123,15 +123,17 @@ class FrameElement:
             base_y, base_z = 0.0, 0.0
             
         else:
-                                      
-            h = getattr(self.section, 'h', 0.0)
+                                                                            
+            h = getattr(self.section, 'h', getattr(self.section, 'd', 0.0))
             
             if hasattr(self.section, 'b'): 
                 b = self.section.b              
             elif hasattr(self.section, 'w_top'):
                 b = max(self.section.w_top, self.section.w_bot)            
+            elif hasattr(self.section, 'd'):
+                b = self.section.d                                     
             else:
-                b = 0.0                
+                b = 0.0             
 
             if hasattr(self.section, 'y_bar'):
                                                 

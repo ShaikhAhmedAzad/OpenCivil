@@ -1,7 +1,8 @@
                         
 import json
 from core.mesh import Node, FrameElement
-from core.properties import Material, RectangularSection, ISection, GeneralSection
+from core.properties import (Material, RectangularSection, ISection, GeneralSection,
+                             CircularSection, PipeSection, TubeSection, TrapezoidalSection)
 from core.grid import GridLines
 from core.boundary import apply_restraint, Restraint
 from core.mesh import Slab 
@@ -335,7 +336,14 @@ class StructuralModel:
                 sec_data.update({"type": "rectangular", "b": sec.b, "h": sec.h})
             elif isinstance(sec, ISection):
                 sec_data.update({"type": "i_section", "h": sec.h, "w_top": sec.w_top, "t_top": sec.t_top, "w_bot": sec.w_bot, "t_bot": sec.t_bot, "t_web": sec.t_web})
-            
+            elif isinstance(sec, CircularSection):
+                sec_data.update({"type": "circular", "d": sec.d})
+            elif isinstance(sec, PipeSection):
+                sec_data.update({"type": "pipe", "d": sec.d, "t": sec.t})
+            elif isinstance(sec, TubeSection):
+                sec_data.update({"type": "tube", "d": sec.d, "b": sec.b, "tf": sec.tf, "tw": sec.tw})
+            elif isinstance(sec, TrapezoidalSection):
+                sec_data.update({"type": "trapezoidal", "d": sec.d, "w_top": sec.w_top, "w_bot": sec.w_bot})
             elif isinstance(sec, GeneralSection):
                 sec_data.update({"type": "general"})
             
@@ -455,26 +463,23 @@ class StructuralModel:
             if s_data["type"] == "rectangular":
                 sec = RectangularSection(s_data["name"], mat, s_data["b"], s_data["h"])
             elif s_data["type"] == "i_section":
-                                                                        
                 saved_props = s_data.get("properties", None) 
-                
                 sec = ISection(
-                    s_data["name"], 
-                    mat, 
-                    s_data["h"], 
-                    s_data["w_top"], 
-                    s_data["t_top"], 
-                    s_data["w_bot"], 
-                    s_data["t_bot"], 
-                    s_data["t_web"],
-                    props=saved_props                   
+                    s_data["name"], mat, s_data["h"], s_data["w_top"], s_data["t_top"], 
+                    s_data["w_bot"], s_data["t_bot"], s_data["t_web"], props=saved_props                   
                 )
+            elif s_data["type"] == "circular":
+                sec = CircularSection(s_data["name"], mat, s_data["d"])
+            elif s_data["type"] == "pipe":
+                sec = PipeSection(s_data["name"], mat, s_data["d"], s_data["t"])
+            elif s_data["type"] == "tube":
+                sec = TubeSection(s_data["name"], mat, s_data["d"], s_data["b"], s_data["tf"], s_data["tw"])
+            elif s_data["type"] == "trapezoidal":
+                sec = TrapezoidalSection(s_data["name"], mat, s_data["d"], s_data["w_top"], s_data["w_bot"])
             elif s_data["type"] == "general":
-                                             
                 p = s_data["properties"]
                 props_dict = {
-                    'A': p["A"], 'J': p["J"], 
-                    'I33': p["I33"], 'I22': p["I22"],
+                    'A': p["A"], 'J': p["J"], 'I33': p["I33"], 'I22': p["I22"],
                     'Asy': p["As2"], 'Asz': p["As3"]
                 }
                 sec = GeneralSection(s_data["name"], mat, props_dict)

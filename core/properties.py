@@ -215,6 +215,173 @@ class ISection(Section):
         self.r33 = math.sqrt(self.I33 / self.A)
         self.r22 = math.sqrt(self.I22 / self.A)
 
+class CircularSection(Section):
+    def __init__(self, name, material: Material, d):
+        super().__init__(name, material)
+        self.d = float(d)
+        self._calculate_properties()
+
+    def _calculate_properties(self):
+        d = self.d
+        if d == 0: return
+        
+        self.A = math.pi * d**2 / 4
+        self.I33 = math.pi * d**4 / 64
+        self.I22 = self.I33
+        self.J = math.pi * d**4 / 32
+        
+        self.Asy = 0.9 * self.A
+        self.Asz = 0.9 * self.A
+        
+        self.S33 = self.I33 / (d / 2)
+        self.S22 = self.S33
+        self.Z33 = d**3 / 6
+        self.Z22 = self.Z33
+        self.r33 = math.sqrt(self.I33 / self.A)
+        self.r22 = self.r33
+
+    def get_shape_coords(self):
+        """Generates a 16-sided polygon to approximate the circle in 3D."""
+        pts = []
+        segments = 32
+        for i in range(segments):
+            theta = 2.0 * math.pi * i / segments
+            pts.append(( (self.d/2)*math.cos(theta), (self.d/2)*math.sin(theta) ))
+        return pts
+
+class PipeSection(Section):
+    def __init__(self, name, material: Material, d, t):
+        super().__init__(name, material)
+        self.d = float(d)
+        self.t = float(t)
+        self._calculate_properties()
+
+    def _calculate_properties(self):
+        d, t = self.d, self.t
+        d_in = max(0, d - 2*t)
+        if d == 0: return
+        
+        self.A = (math.pi / 4) * (d**2 - d_in**2)
+        if self.A == 0: return
+        
+        self.I33 = (math.pi / 64) * (d**4 - d_in**4)
+        self.I22 = self.I33
+        self.J = (math.pi / 32) * (d**4 - d_in**4)
+        
+        self.Asy = self.A / 2.0
+        self.Asz = self.A / 2.0
+        
+        self.S33 = self.I33 / (d / 2)
+        self.S22 = self.S33
+        self.Z33 = (d**3 - d_in**3) / 6
+        self.Z22 = self.Z33
+        self.r33 = math.sqrt(self.I33 / self.A)
+        self.r22 = self.r33
+
+    def get_shape_coords(self):
+        """Draws outer circle, cuts inward, and draws inner circle backward to create a hollow extrusion."""
+        pts = []
+        segments = 32
+        d_in = self.d - 2*self.t
+        
+        for i in range(segments + 1):
+            theta = 2.0 * math.pi * i / segments
+            pts.append(( (self.d/2)*math.cos(theta), (self.d/2)*math.sin(theta) ))
+            
+        for i in range(segments, -1, -1):
+            theta = 2.0 * math.pi * i / segments
+            pts.append(( (d_in/2)*math.cos(theta), (d_in/2)*math.sin(theta) ))
+        return pts
+
+class TubeSection(Section):
+    def __init__(self, name, material: Material, d, b, tf, tw):
+        super().__init__(name, material)
+        self.d = float(d)
+        self.b = float(b)
+        self.tf = float(tf)
+        self.tw = float(tw)
+        self._calculate_properties()
+
+    def _calculate_properties(self):
+        d, b, tf, tw = self.d, self.b, self.tf, self.tw
+        h_in = max(0, d - 2*tf)
+        b_in = max(0, b - 2*tw)
+        
+        self.A = b*d - b_in*h_in
+        if self.A == 0: return
+        
+        self.I33 = (b * d**3)/12 - (b_in * h_in**3)/12
+        self.I22 = (d * b**3)/12 - (h_in * b_in**3)/12
+        
+        Am = (b - tw) * (d - tf)
+        perimeter_integral = 2*(b - tw)/tf + 2*(d - tf)/tw
+        if perimeter_integral > 0:
+            self.J = (4 * Am**2) / perimeter_integral
+        else:
+            self.J = 0.0
+            
+        self.Asy = 2 * d * tw
+        self.Asz = 2 * b * tf
+        
+        self.S33 = self.I33 / (d / 2)
+        self.S22 = self.I22 / (b / 2)
+        self.Z33 = (b * d**2)/4 - (b_in * h_in**2)/4
+        self.Z22 = (d * b**2)/4 - (h_in * b_in**2)/4
+        self.r33 = math.sqrt(self.I33 / self.A)
+        self.r22 = math.sqrt(self.I22 / self.A)
+
+    def get_shape_coords(self):
+        """Draws outer box, cuts inward, and draws inner box backward to create a hollow extrusion."""
+        d_out, b_out = self.d/2, self.b/2
+        d_in, b_in = d_out - self.tf, b_out - self.tw
+        
+        return [
+            (b_out, d_out), (-b_out, d_out), (-b_out, -d_out), (b_out, -d_out), (b_out, d_out),        
+            (b_in, d_in), (b_in, -d_in), (-b_in, -d_in), (-b_in, d_in), (b_in, d_in)                  
+        ]
+
+class TrapezoidalSection(Section):
+    def __init__(self, name, material: Material, d, w_top, w_bot):
+        super().__init__(name, material)
+        self.d = float(d)
+        self.w_top = float(w_top)
+        self.w_bot = float(w_bot)
+        self._calculate_properties()
+
+    def _calculate_properties(self):
+        d, a, b = self.d, self.w_top, self.w_bot
+        self.A = (a + b) * d / 2
+        if self.A == 0: return
+        
+        self.y_bar = (d / 3) * (2*a + b) / (a + b)
+        
+        self.I33 = (d**3 / 36) * (a**2 + 4*a*b + b**2) / (a + b)
+        self.I22 = (d / 48) * (a + b) * (a**2 + b**2)
+        self.J = self.I33 + self.I22               
+        
+        self.Asy = (5/6) * self.A
+        self.Asz = (5/6) * self.A
+        
+        c_top = d - self.y_bar
+        c_bot = self.y_bar
+        self.S33 = self.I33 / max(c_top, c_bot)
+        self.S22 = self.I22 / (max(a, b) / 2)
+        
+        self.Z33 = 0.0                                      
+        self.Z22 = 0.0
+        self.r33 = math.sqrt(self.I33 / self.A)
+        self.r22 = math.sqrt(self.I22 / self.A)
+
+    def get_shape_coords(self):
+        y_top = self.d - self.y_bar
+        y_bot = -self.y_bar
+        return [
+            (self.w_top/2, y_top),
+            (-self.w_top/2, y_top),
+            (-self.w_bot/2, y_bot),
+            (self.w_bot/2, y_bot)
+        ]
+
 class GeneralSection(Section):
     def __init__(self, name, material, props_dict, color=None):
         super().__init__(name, material, color)

@@ -22,7 +22,6 @@ from linear_static.assembler import GlobalAssembler
 from linear_static.error_definitions import SolverException
 from mass_assembler import GlobalMassAssembler
 
-
 def _write_error(out_path, error_code, extra=""):
     """Writes the error to JSON and returns True so the UI loads the error dialog."""
     ex = SolverException(error_code, extra)
@@ -32,7 +31,6 @@ def _write_error(out_path, error_code, extra=""):
     except:
         pass
     return True
-
 
 def run_modal_analysis(input_json_path, output_json_path):
     print("="*60)
@@ -107,20 +105,20 @@ def run_modal_analysis(input_json_path, output_json_path):
 
     try:
         req_modes = modal_case_def.get("num_modes", 12) if modal_case_def else 12
+  
+        n_free_dofs = K_free.shape[0]
+        max_safe_modes = n_free_dofs - 2 if n_free_dofs > 20 else max(1, n_free_dofs // 3)
+        safe_num_modes = min(req_modes, max_safe_modes)
         
-        safe_limit = max(1, num_free_dofs - 2) if num_free_dofs < 20 else num_free_dofs - 2
-        
-        if req_modes > safe_limit:
-            print(f"      Warning: Requested {req_modes} modes, but system limited to {num_free_dofs} DOFs.")
-            print(f"      Reducing request to {safe_limit} modes.")
-            req_modes = safe_limit
-
-        if req_modes < 1:
-            print("Error: Cannot solve for 0 modes.")
-            return _write_error(output_json_path, "E303", "Cannot solve for 0 modes. Free DOFs too low.")
+        if safe_num_modes <= 0:
+            return _write_error(output_json_path, "E304",
+                f"Structure only has {n_free_dofs} free DOFs. Need at least 2 free DOFs for modal analysis.")
+            
+        if safe_num_modes < req_modes:
+            print(f"Warning: Requested {req_modes} modes but model only has {n_free_dofs} free DOFs. Clamped to {safe_num_modes} modes.")
+            req_modes = safe_num_modes
 
         print(f"[4/6] Solving Eigenvalues (Shift-Invert @ -0.1)...")
-        
         sigma_shift = -0.1
         
         vals, vecs = eigsh(K_free, M=M_free, k=req_modes, sigma=sigma_shift)
@@ -128,10 +126,15 @@ def run_modal_analysis(input_json_path, output_json_path):
         print(f"      Converged. Found {len(vals)} modes.")
 
     except Exception as e:
-        print(f"FATAL: Eigen Solver Error: {e}")
-        if "ARPACK" in str(e):
-             print("      (Hint: The model might be extremely unstable or disconnected.)")
-        return _write_error(output_json_path, "E303", str(e))
+        err_str = str(e)
+        print(f"FATAL: Eigen Solver Error: {err_str}")
+        if "-9999" in err_str or "Arnoldi" in err_str:
+            return _write_error(output_json_path, "E304",
+                f"Requested {req_modes} modes but the solver could not converge. "
+                f"Your model has {n_free_dofs} free DOFs. "
+                f"Try reducing Number of Modes to {max(1, req_modes // 2)} or check for disconnected nodes.")
+        else:
+            return _write_error(output_json_path, "E303", f"ARPACK Error: {err_str}")
 
     print("[5/6] Calculating Modal Participation...")
     

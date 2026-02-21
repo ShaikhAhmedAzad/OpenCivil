@@ -9,6 +9,8 @@ from post.deflection import get_deflected_shape
 from post.animation import AnimationManager
 from graphic.view_cube import ViewCube
 from OpenGL.GL import *
+from core.properties import RectangularSection, CircularSection, TrapezoidalSection
+
 class MCanvas3D(gl.GLViewWidget):
     signal_canvas_clicked = pyqtSignal(float, float, float)
     signal_right_clicked = pyqtSignal()
@@ -568,6 +570,8 @@ class MCanvas3D(gl.GLViewWidget):
             sec = el.section
             shape_yz = sec.get_shape_coords()
             if not shape_yz: continue 
+
+            needs_caps = isinstance(sec, (RectangularSection, CircularSection, TrapezoidalSection))
                              
             if not is_active_elem:
                                                           
@@ -647,7 +651,7 @@ class MCanvas3D(gl.GLViewWidget):
                 path_points.append( (p1_draw, v2, v3) )
                 path_points.append( (p2_draw, v2, v3) )
 
-            y_shift, z_shift = sec.get_insertion_point_shift(el.cardinal_point)
+            y_shift, z_shift = el.get_cardinal_offsets()
             off_vec_i = getattr(el, 'joint_offset_i', np.array([0,0,0]))
             off_vec_j = getattr(el, 'joint_offset_j', np.array([0,0,0]))
             
@@ -678,7 +682,8 @@ class MCanvas3D(gl.GLViewWidget):
                     shape_yz, face_color, 
                     show_edges, current_edge_color,
                     draw_start_ring=is_first_seg, 
-                    draw_end_ring=is_last_seg
+                    draw_end_ring=is_last_seg,
+                    draw_caps=needs_caps
                 )
 
         if center_lines:
@@ -707,8 +712,7 @@ class MCanvas3D(gl.GLViewWidget):
              ed.setGLOptions('opaque') 
              self.addItem(ed)
 
-    def _add_loft_segment(self, c1, c2, v2_a, v3_a, v2_b, v3_b, shape, color, show_edges, edge_color, 
-                          draw_start_ring=False, draw_end_ring=False):
+    def _add_loft_segment(self, c1, c2, v2_a, v3_a, v2_b, v3_b, shape, color, show_edges, edge_color, draw_start_ring=False, draw_end_ring=False, draw_caps=False):
         """
         Smart Extrusion: Generates triangles but selectively hides internal 'ribs' 
         to maintain the clean 'glass' look.
@@ -756,11 +760,23 @@ class MCanvas3D(gl.GLViewWidget):
                 if draw_end_ring:
                     self.ex_edges.extend([verts_b[i], verts_b[next_i]])
                     self.ex_edge_colors.extend([edge_color, edge_color])
+
+        if draw_caps:
+            if draw_start_ring and n >= 3:
+                root_a = start_idx
+                for i in range(1, n - 1):
+                                                                     
+                    self.ex_faces.append([root_a, start_idx + i + 1, start_idx + i])
+            if draw_end_ring and n >= 3:
+                root_b = start_idx + n
+                for i in range(1, n - 1):
+                                                                 
+                    self.ex_faces.append([root_b, start_idx + n + i, start_idx + n + i + 1])
     
     def _add_loft_to_arrays(self, c1, c2, v2_a, v3_a, v2_b, v3_b, shape, color, show_edges, edge_color,
                             draw_start_ring=False, draw_end_ring=False,
                             ex_vertices=None, ex_faces=None, ex_colors=None,
-                            ex_edges=None, ex_edge_colors=None):
+                            ex_edges=None, ex_edge_colors=None, draw_caps=False):
         """
         Same as _add_loft_segment but adds to provided arrays instead of self.ex_*
         Used for pre-rendering animation frames.
@@ -808,6 +824,16 @@ class MCanvas3D(gl.GLViewWidget):
                 if draw_end_ring:
                     ex_edges.extend([verts_b[i], verts_b[next_i]])
                     ex_edge_colors.extend([edge_color, edge_color])
+
+        if draw_caps:
+            if draw_start_ring and n >= 3:
+                root_a = start_idx
+                for i in range(1, n - 1):
+                    ex_faces.append([root_a, start_idx + i + 1, start_idx + i])
+            if draw_end_ring and n >= 3:
+                root_b = start_idx + n
+                for i in range(1, n - 1):
+                    ex_faces.append([root_b, start_idx + n + i, start_idx + n + i + 1])
     
     def _triangulate_cap_indices(self, indices, full_faces):
         """Helper to triangulate a polygon given vertex indices."""
@@ -1528,6 +1554,8 @@ class MCanvas3D(gl.GLViewWidget):
             shape_yz = sec.get_shape_coords()
             if not shape_yz:
                 continue
+
+            needs_caps = isinstance(sec, (RectangularSection, CircularSection, TrapezoidalSection))
             
             is_active_elem = (v1 == 2 and v2 == 2)
             
@@ -1573,7 +1601,7 @@ class MCanvas3D(gl.GLViewWidget):
                 center_lines.extend([path_points[0][0], path_points[-1][0]])
                 center_colors.extend([color_edge_select, color_edge_select])
             
-            y_shift, z_shift = sec.get_insertion_point_shift(el.cardinal_point)
+            y_shift, z_shift = el.get_cardinal_offsets()
             off_vec_i = getattr(el, 'joint_offset_i', np.array([0, 0, 0]))
             off_vec_j = getattr(el, 'joint_offset_j', np.array([0, 0, 0]))
             
@@ -1605,6 +1633,7 @@ class MCanvas3D(gl.GLViewWidget):
                     show_edges, current_edge_color,
                     draw_start_ring=is_first_seg,
                     draw_end_ring=is_last_seg,
+                    draw_caps=needs_caps,
                     ex_vertices=ex_vertices,
                     ex_faces=ex_faces,
                     ex_colors=ex_colors,

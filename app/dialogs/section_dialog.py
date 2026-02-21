@@ -6,10 +6,11 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QGroupBox, QGridLayout, QWidget, QFrame, QStackedWidget,
                              QFileDialog)
 from PyQt6.QtCore import Qt, QRectF, QPointF
-from PyQt6.QtGui import QPainter, QColor, QPen, QBrush
+from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QPainterPath, QPolygonF
 from core.units import unit_registry
-from core.properties import RectangularSection, ISection, Material, GeneralSection
-
+from core.properties import (RectangularSection, ISection, Material, 
+                             GeneralSection, CircularSection, 
+                             PipeSection, TubeSection, TrapezoidalSection)
 class AISCSelectionDialog(QDialog):
     """Dialog to select a specific shape from the loaded AISC list."""
     def __init__(self, shape_list, parent=None):
@@ -127,6 +128,75 @@ class SectionPreviewWidget(QFrame):
             if web_h > 0:
                 painter.drawRect(QRectF(cx - st_web/2, top_y + st_top, st_web, web_h))
 
+        elif p["type"] == "circ":
+            d = p["circ_d"]
+            if d == 0: return
+            scale = 140.0 / d
+            draw_d = d * scale
+            painter.drawEllipse(QRectF(cx - draw_d/2, cy - draw_d/2, draw_d, draw_d))
+            
+        elif p["type"] == "pipe":
+            d = p["pipe_d"]
+            t = p["pipe_t"]
+            if d == 0: return
+            scale = 140.0 / d
+            draw_d = d * scale
+            draw_t = t * scale
+            
+            path = QPainterPath()
+            path.addEllipse(QRectF(cx - draw_d/2, cy - draw_d/2, draw_d, draw_d))
+            if draw_d > 2 * draw_t:
+                inner_d = draw_d - 2 * draw_t
+                path.addEllipse(QRectF(cx - inner_d/2, cy - inner_d/2, inner_d, inner_d))
+            
+            path.setFillRule(Qt.FillRule.OddEvenFill)
+            painter.drawPath(path)
+            
+        elif p["type"] == "tube":
+            d = p["tube_d"]
+            b = p["tube_b"]
+            tf = p["tube_tf"]
+            tw = p["tube_tw"]
+            max_dim = max(d, b)
+            if max_dim == 0: return
+            scale = 140.0 / max_dim
+            
+            draw_d, draw_b = d * scale, b * scale
+            draw_tf, draw_tw = tf * scale, tw * scale
+            
+            path = QPainterPath()
+            path.addRect(QRectF(cx - draw_b/2, cy - draw_d/2, draw_b, draw_d))
+            if draw_d > 2 * draw_tf and draw_b > 2 * draw_tw:
+                inner_d = draw_d - 2 * draw_tf
+                inner_b = draw_b - 2 * draw_tw
+                path.addRect(QRectF(cx - inner_b/2, cy - inner_d/2, inner_b, inner_d))
+                
+            path.setFillRule(Qt.FillRule.OddEvenFill)
+            painter.drawPath(path)
+            
+        elif p["type"] == "trap":
+            d = p["trap_d"]
+            btop = p["trap_btop"]
+            bbot = p["trap_bbot"]
+            max_dim = max(d, btop, bbot)
+            if max_dim == 0: return
+            scale = 140.0 / max_dim
+            
+            draw_d = d * scale
+            draw_btop = btop * scale
+            draw_bbot = bbot * scale
+            
+            top_y = cy - draw_d/2
+            bot_y = cy + draw_d/2
+            
+            poly = QPolygonF([
+                QPointF(cx - draw_btop/2, top_y),
+                QPointF(cx + draw_btop/2, top_y),
+                QPointF(cx + draw_bbot/2, bot_y),
+                QPointF(cx - draw_bbot/2, bot_y)
+            ])
+            painter.drawPolygon(poly)
+
         painter.setBrush(Qt.GlobalColor.red)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(QPointF(cx, cy), 3, 3)
@@ -237,11 +307,18 @@ class AddSectionDialog(QDialog):
         self.connect_signals()
 
         if self.section_data:
+            self.setWindowTitle("Modify Section Property")
             self.load_section_data()
+        else:
+            self.setWindowTitle("Add New Section Property")
+            base_name = "SEC"
+            idx = 1
+            while f"{base_name}{idx}" in self.model.sections:
+                idx += 1
+            self.name_edit.setText(f"{base_name}{idx}")
 
         self.update_color_button()
         self.update_preview()
-
     def setup_ui(self):
         main_layout = QVBoxLayout(self)
         top = QHBoxLayout()
@@ -250,7 +327,15 @@ class AddSectionDialog(QDialog):
         form.addRow("Section Name:", self.name_edit)
         
         self.type_combo = QComboBox()
-        self.type_combo.addItems(["Rectangular", "I-Section / T-Section", "General / Custom"])                
+        self.type_combo.addItems([
+            "Rectangular", 
+            "I-Section / T-Section", 
+            "Circular", 
+            "Pipe", 
+            "Tube", 
+            "Trapezoidal", 
+            "General / Custom"
+        ])               
         form.addRow("Shape:", self.type_combo)
 
         self.btn_color = QPushButton()
@@ -286,22 +371,46 @@ class AddSectionDialog(QDialog):
         self.i_tbot_spin = self.mk_spin(0.02); fi.addRow("Bot Flange Thick:", self.i_tbot_spin)
         pg_i.setLayout(fi)
         self.stack.addWidget(pg_i)
-        
-        in_layout.addWidget(self.stack)
-        input_grp.setLayout(in_layout)
+
+        pg_circ = QWidget(); fc = QFormLayout()
+        self.circ_d_spin = self.mk_spin(0.5); fc.addRow("Diameter (t3):", self.circ_d_spin)
+        pg_circ.setLayout(fc)
+        self.stack.addWidget(pg_circ)
+
+        pg_pipe = QWidget(); fp = QFormLayout()
+        self.pipe_d_spin = self.mk_spin(0.5); fp.addRow("Outer Diameter (t3):", self.pipe_d_spin)
+        self.pipe_t_spin = self.mk_spin(0.02); fp.addRow("Wall Thickness (tw):", self.pipe_t_spin)
+        pg_pipe.setLayout(fp)
+        self.stack.addWidget(pg_pipe)
+
+        pg_tube = QWidget(); ft = QFormLayout()
+        self.tube_d_spin = self.mk_spin(0.5); ft.addRow("Depth (t3):", self.tube_d_spin)
+        self.tube_b_spin = self.mk_spin(0.3); ft.addRow("Width (t2):", self.tube_b_spin)
+        self.tube_tf_spin = self.mk_spin(0.02); ft.addRow("Flange Thick (tf):", self.tube_tf_spin)
+        self.tube_tw_spin = self.mk_spin(0.02); ft.addRow("Web Thick (tw):", self.tube_tw_spin)
+        pg_tube.setLayout(ft)
+        self.stack.addWidget(pg_tube)
+
+        pg_trap = QWidget(); ftr = QFormLayout()
+        self.trap_d_spin = self.mk_spin(0.5); ftr.addRow("Depth (t3):", self.trap_d_spin)
+        self.trap_btop_spin = self.mk_spin(0.3); ftr.addRow("Top Width (t2):", self.trap_btop_spin)
+        self.trap_bbot_spin = self.mk_spin(0.4); ftr.addRow("Bot Width (t2b):", self.trap_bbot_spin)
+        pg_trap.setLayout(ftr)
+        self.stack.addWidget(pg_trap)
 
         pg_gen = QWidget()
         fg = QGridLayout()                                 
-
         self.gen_a = self.mk_prop_spin();   fg.addWidget(QLabel("Area (A):"), 0, 0);   fg.addWidget(self.gen_a, 0, 1)
         self.gen_j = self.mk_prop_spin();   fg.addWidget(QLabel("Torsion (J):"), 1, 0); fg.addWidget(self.gen_j, 1, 1)
         self.gen_i33 = self.mk_prop_spin(); fg.addWidget(QLabel("I33 (Major):"), 2, 0); fg.addWidget(self.gen_i33, 2, 1)
         self.gen_i22 = self.mk_prop_spin(); fg.addWidget(QLabel("I22 (Minor):"), 3, 0); fg.addWidget(self.gen_i22, 3, 1)
         self.gen_as2 = self.mk_prop_spin(); fg.addWidget(QLabel("Shear Area 2:"), 4, 0); fg.addWidget(self.gen_as2, 4, 1)
         self.gen_as3 = self.mk_prop_spin(); fg.addWidget(QLabel("Shear Area 3:"), 5, 0); fg.addWidget(self.gen_as3, 5, 1)
-
         pg_gen.setLayout(fg)
-        self.stack.addWidget(pg_gen)
+        self.stack.addWidget(pg_gen)    
+        
+        in_layout.addWidget(self.stack)
+        input_grp.setLayout(in_layout)
         
         prev_layout = QVBoxLayout()
         self.preview_widget = SectionPreviewWidget()
@@ -342,7 +451,10 @@ class AddSectionDialog(QDialog):
         self.btn_mods.clicked.connect(self.show_modifiers)
         self.btn_props.clicked.connect(self.show_properties)
         for s in [self.h_spin, self.b_spin, self.i_h_spin, self.i_wtop_spin, 
-                  self.i_ttop_spin, self.i_tw_spin, self.i_wbot_spin, self.i_tbot_spin]:
+                  self.i_ttop_spin, self.i_tw_spin, self.i_wbot_spin, self.i_tbot_spin,
+                  self.circ_d_spin, self.pipe_d_spin, self.pipe_t_spin, 
+                  self.tube_d_spin, self.tube_b_spin, self.tube_tf_spin, self.tube_tw_spin,
+                  self.trap_d_spin, self.trap_btop_spin, self.trap_bbot_spin]:
             s.valueChanged.connect(self.update_preview)
 
     def on_type_changed(self, idx):
@@ -353,6 +465,10 @@ class AddSectionDialog(QDialog):
         idx = self.type_combo.currentIndex()
         if idx == 0: st = "rect"
         elif idx == 1: st = "i_sec"
+        elif idx == 2: st = "circ"
+        elif idx == 3: st = "pipe"
+        elif idx == 4: st = "tube"
+        elif idx == 5: st = "trap"
         else: st = "general"                                              
         
         p = {
@@ -361,6 +477,13 @@ class AddSectionDialog(QDialog):
             "H": self.i_h_spin.value(), "w_top": self.i_wtop_spin.value(),
             "t_top": self.i_ttop_spin.value(), "t_web": self.i_tw_spin.value(),
             "w_bot": self.i_wbot_spin.value(), "t_bot": self.i_tbot_spin.value(),
+                                
+            "circ_d": self.circ_d_spin.value(),
+            "pipe_d": self.pipe_d_spin.value(), "pipe_t": self.pipe_t_spin.value(),
+            "tube_d": self.tube_d_spin.value(), "tube_b": self.tube_b_spin.value(),
+            "tube_tf": self.tube_tf_spin.value(), "tube_tw": self.tube_tw_spin.value(),
+            "trap_d": self.trap_d_spin.value(), "trap_btop": self.trap_btop_spin.value(),
+            "trap_bbot": self.trap_bbot_spin.value()
         }
         self.preview_widget.update_params(p)
 
@@ -401,13 +524,20 @@ class AddSectionDialog(QDialog):
         if idx == 0:
             sec = RectangularSection(temp_name, dummy_mat, self.b_spin.value() / scale, self.h_spin.value() / scale)
         elif idx == 1:
-                                                                                  
             sec = ISection(temp_name, dummy_mat, 
                         self.i_h_spin.value() / scale, self.i_wtop_spin.value() / scale, 
                         self.i_ttop_spin.value() / scale, self.i_wbot_spin.value() / scale, 
                         self.i_tbot_spin.value() / scale, self.i_tw_spin.value() / scale,
-                        props=exact_props)                       
-        else:
+                        props=exact_props)   
+        elif idx == 2:
+            sec = CircularSection(temp_name, dummy_mat, self.circ_d_spin.value() / scale)
+        elif idx == 3:
+            sec = PipeSection(temp_name, dummy_mat, self.pipe_d_spin.value() / scale, self.pipe_t_spin.value() / scale)
+        elif idx == 4:
+            sec = TubeSection(temp_name, dummy_mat, self.tube_d_spin.value() / scale, self.tube_b_spin.value() / scale, self.tube_tf_spin.value() / scale, self.tube_tw_spin.value() / scale)
+        elif idx == 5:
+            sec = TrapezoidalSection(temp_name, dummy_mat, self.trap_d_spin.value() / scale, self.trap_btop_spin.value() / scale, self.trap_bbot_spin.value() / scale)
+        elif idx == 6:          
             props = {
                 'A': self.gen_a.value(), 'J': self.gen_j.value(),
                 'I33': self.gen_i33.value(), 'I22': self.gen_i22.value(),
@@ -446,9 +576,31 @@ class AddSectionDialog(QDialog):
             self.i_tw_spin.setValue(self.section_data.t_web * scale)
             self.i_wbot_spin.setValue(self.section_data.w_bot * scale)
             self.i_tbot_spin.setValue(self.section_data.t_bot * scale)
+
+        elif isinstance(self.section_data, CircularSection):
+            self.type_combo.setCurrentIndex(2)
+            self.circ_d_spin.setValue(self.section_data.d * scale)
+            
+        elif isinstance(self.section_data, PipeSection):
+            self.type_combo.setCurrentIndex(3)
+            self.pipe_d_spin.setValue(self.section_data.d * scale)
+            self.pipe_t_spin.setValue(self.section_data.t * scale)
+            
+        elif isinstance(self.section_data, TubeSection):
+            self.type_combo.setCurrentIndex(4)
+            self.tube_d_spin.setValue(self.section_data.d * scale)
+            self.tube_b_spin.setValue(self.section_data.b * scale)
+            self.tube_tf_spin.setValue(self.section_data.tf * scale)
+            self.tube_tw_spin.setValue(self.section_data.tw * scale)
+            
+        elif isinstance(self.section_data, TrapezoidalSection):
+            self.type_combo.setCurrentIndex(5)
+            self.trap_d_spin.setValue(self.section_data.d * scale)
+            self.trap_btop_spin.setValue(self.section_data.w_top * scale)
+            self.trap_bbot_spin.setValue(self.section_data.w_bot * scale)
         
         elif isinstance(self.section_data, GeneralSection):
-            self.type_combo.setCurrentIndex(2)
+            self.type_combo.setCurrentIndex(6)
             scale = unit_registry.length_scale
             self.gen_a.setValue(getattr(self.section_data, 'A', 0.0) * (scale**2))
             self.gen_j.setValue(getattr(self.section_data, 'J', 0.0) * (scale**4))
@@ -462,6 +614,16 @@ class AddSectionDialog(QDialog):
         if not name:
             QMessageBox.warning(self, "Error", "Please enter a Section Name.")
             return
+        
+        original_name = self.section_data.name if self.section_data else None
+        if name != original_name and name in self.model.sections:
+            reply = QMessageBox.question(
+                self, "Duplicate Name", 
+                f"A section named '{name}' already exists. Do you want to overwrite it?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.No:
+                return
 
         mat_name = self.mat_combo.currentText()
         if not mat_name:
@@ -482,14 +644,16 @@ class AddSectionDialog(QDialog):
                 'As3': self.section_data.Asz
             }
 
-        if self.type_combo.currentIndex() == 0:
+        idx = self.type_combo.currentIndex()
+        
+        if idx == 0:               
             sec = RectangularSection(
                 name, mat, 
                 self.b_spin.value() / scale, 
                 self.h_spin.value() / scale
             )
         
-        elif self.type_combo.currentIndex() == 1:
+        elif idx == 1:             
             sec = ISection(
                 name, mat, 
                 self.i_h_spin.value() / scale, 
@@ -501,7 +665,37 @@ class AddSectionDialog(QDialog):
                 props=exact_props
             )
 
-        elif self.type_combo.currentIndex() == 2:
+        elif idx == 2:            
+            sec = CircularSection(
+                name, mat, 
+                self.circ_d_spin.value() / scale
+            )
+            
+        elif idx == 3:        
+            sec = PipeSection(
+                name, mat, 
+                self.pipe_d_spin.value() / scale, 
+                self.pipe_t_spin.value() / scale
+            )
+            
+        elif idx == 4:        
+            sec = TubeSection(
+                name, mat, 
+                self.tube_d_spin.value() / scale, 
+                self.tube_b_spin.value() / scale, 
+                self.tube_tf_spin.value() / scale, 
+                self.tube_tw_spin.value() / scale
+            )
+            
+        elif idx == 5:               
+            sec = TrapezoidalSection(
+                name, mat, 
+                self.trap_d_spin.value() / scale, 
+                self.trap_btop_spin.value() / scale, 
+                self.trap_bbot_spin.value() / scale
+            )
+
+        elif idx == 6:           
             props = {
                 'A':   self.gen_a.value() / (scale**2),
                 'J':   self.gen_j.value() / (scale**4),

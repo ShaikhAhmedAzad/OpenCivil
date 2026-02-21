@@ -85,9 +85,30 @@ SOLVER_ERRORS = {
     },
 
     "E303": {
-        "title": "Eigen Solver Convergence Failure",
-        "desc": "The eigenvalue solver (ARPACK) could not converge or encountered a mathematical instability.",
-        "fix": "Your model might be completely unstable, disconnected, or lack mass in certain free directions. Check restraints, releases, and mass sources."
+        "title": "Eigen Solver Could Not Converge",
+        "desc": "The mode shape solver failed to find a solution. This usually means the structure is unstable, has zero mass in a direction, or is not properly supported.",
+        "fix": (
+            "1. Check your Mass Source — make sure 'Include Self-Mass' is ON, or a Load Pattern with gravity loads is assigned.\n"
+            "2. Make sure the structure has supports (Fixed or Pinned) at the base.\n"
+            "3. Look for disconnected or floating nodes (Analyze > Check Model).\n"
+            "4. Try reducing the Number of Modes and re-run."
+        )
+    },
+
+    "E304": {
+        "title": "Too Many Modes Requested",
+        "desc": (
+            "You asked for more vibration modes than your model can produce.\n\n"
+            "Your model is small (few elements/nodes), so the number of independent "
+            "directions it can vibrate in is limited. The solver cannot find more modes "
+            "than roughly half the number of free joints in the model."
+        ),
+        "fix": (
+            "Option A — Reduce Modes: Go to Define > Load Cases > MODAL and lower 'Number of Modes'.\n"
+            "           A model with ~10 elements typically supports 3–6 modes reliably.\n\n"
+            "Option B — Refine Mesh: Add more elements/nodes to your model so the solver "
+            "           has enough mathematical room to find the modes you need."
+        )
     },
 
     "E401": {

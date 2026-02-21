@@ -193,16 +193,13 @@ class GraphicsOptionsDialog(QDialog):
         
         parent = self.parent()
         
-        # 1. Apply the new graphics settings
         if parent and hasattr(parent, "update_graphics_settings"):
             parent.update_graphics_settings(self.get_settings())
         
-        # 2. Grab the file path before the app shuts down
         file_path = None
         if parent and hasattr(parent, "model") and parent.model:
             file_path = getattr(parent.model, "file_path", None)
 
-        # 3. Build the safe launch arguments using absolute paths
         if getattr(sys, 'frozen', False):
             args = [sys.executable]
         else:
@@ -211,18 +208,14 @@ class GraphicsOptionsDialog(QDialog):
         if file_path and os.path.exists(file_path):
             args.append(os.path.abspath(file_path))
 
-        # 4. Trigger the main window's built-in close event!
-        # This triggers your "Unsaved Changes" dialog exactly like clicking the 'X' button.
         if parent:
             if not parent.close():
-                # If the user clicks 'Cancel' on the prompt, close() returns False. We abort!
+                                                                                             
                 return 
 
-        # 5. If they clicked Save or Discard, the app is closing. Launch the new one!
         subprocess.Popen(args)
         self.accept()
 
-        
     def get_settings(self):
         """Collects all values from widgets and returns the dict."""
         return {
