@@ -33,7 +33,11 @@ env/
 .venv/
 
 .opencivil/
+encrypt_secrets.py
+bundle_key.txt
 
+runtime_hook.py
+app/auth/secrets.bin
 
 dist/
 build/
