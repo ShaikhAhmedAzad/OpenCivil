@@ -146,6 +146,9 @@ class AnimationManager(QObject):
             if hasattr(self.canvas, '_clear_static_elements'):
                 self.canvas._clear_static_elements()
 
+        self.elapsed_timer.restart()
+        self.last_tick_time = self.elapsed_timer.elapsed()
+        self.sine_accumulator = 0.0
         self.is_running = True
         self.current_frame_index = 0
         self.timer.start(int(1000 / self.fps))

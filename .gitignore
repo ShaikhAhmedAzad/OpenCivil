@@ -53,3 +53,7 @@ build/
 .DS_Store
 Thumbs.db
 desktop.ini
+Example_Project/Example_File_matrices.json
+Example_Project/Example_File_results.json
+Example_Project/Example_File.mf
+Example_Project/Example_File.mf

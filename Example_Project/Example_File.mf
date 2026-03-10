@@ -42,7 +42,13 @@
             ],
             "p_delta": false,
             "mass_source": "Default",
-            "num_modes": 12
+            "num_modes": 12,
+            "rsa_loads": [],
+            "modal_comb": "SRSS",
+            "dir_comb": "SRSS",
+            "modal_damping": 0.05,
+            "ltha_damping": 0.05,
+            "ltha_loads": []
         },
         {
             "name": "MODAL",
@@ -50,7 +56,13 @@
             "loads": [],
             "p_delta": false,
             "mass_source": "Default",
-            "num_modes": 12
+            "num_modes": 12,
+            "rsa_loads": [],
+            "modal_comb": "SRSS",
+            "dir_comb": "SRSS",
+            "modal_damping": 0.05,
+            "ltha_damping": 0.05,
+            "ltha_loads": []
         }
     ],
     "grid": {
@@ -9295,5 +9307,7 @@
                 ]
             ]
         }
-    ]
+    ],
+    "functions": [],
+    "th_functions": []
 }

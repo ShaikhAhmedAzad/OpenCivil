@@ -137,6 +137,15 @@ def run_ltha_analysis(modal_results_path, model_data, output_path, case_name="LT
 
             q_n, _, _ = newmark_elastic_sdof(accel_eff, dt, T, zeta, m=1.0)
 
+            if i == 0:  # mode 1 only
+                print(f"\n--- DEBUG MODE 1 ---")
+                print(f"  pm dict = {pm}")
+                print(f"  T = {T:.4f} s")
+                print(f"  Gamma = {Gamma:.6f}")
+                print(f"  max(accel_eff) = {np.max(np.abs(accel_eff)):.6f} m/s2")
+                print(f"  max(q_n) = {np.max(np.abs(q_n)):.6f} m")
+                print(f"--------------------\n")
+
             mode_key   = f"Mode {i+1}"
             shape_data = mode_shapes.get(mode_key, {})
 

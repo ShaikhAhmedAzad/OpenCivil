@@ -220,12 +220,12 @@ class DeformedShapeDialog(QDialog):
     def update_anim_button_style(self):
         if self.btn_animate.isChecked():
             self.btn_animate.setText("⏸  Pause")
-            self.btn_animate.setStyleSheet("background-color: #ffcccc; color: red; font-weight: bold;")
+            self.btn_animate.setStyleSheet("font-weight: bold;")
             self.spin_scale.setEnabled(False)
         else:
             lbl = "▶  Play" if self.ltha_mode else "Start Animation"
             self.btn_animate.setText(lbl)
-            self.btn_animate.setStyleSheet("background-color: #ccffcc; color: green; font-weight: bold;")
+            self.btn_animate.setStyleSheet("font-weight: bold;")
             self.spin_scale.setEnabled(True)
 
     def on_toggle_anim(self):

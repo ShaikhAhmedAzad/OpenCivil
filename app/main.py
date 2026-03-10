@@ -593,8 +593,6 @@ class MainWindow(QMainWindow):
                 if self.model.graphics_settings:
                                                                  
                     self.graphics_settings.update(self.model.graphics_settings)
-                    
-                    self.update_graphics_settings(self.graphics_settings)
 
                     self.canvas.view_extruded = self.graphics_settings.get('view_extruded', False)
                     self.canvas.show_slabs = self.graphics_settings.get('show_slabs', True)
@@ -602,6 +600,12 @@ class MainWindow(QMainWindow):
                     self.canvas.show_supports = self.graphics_settings.get('show_supports', True)
                     self.canvas.show_loads = self.graphics_settings.get('show_loads', True)
                     self.canvas.show_local_axes = self.graphics_settings.get('show_local_axes', False)
+                    self.canvas.show_constraints = self.graphics_settings.get('show_constraints', True)
+                    self.canvas.show_releases = self.graphics_settings.get('show_releases', True)
+                    self.canvas.load_type_filter = self.graphics_settings.get('load_type_filter', 'both')
+                    self.canvas.visible_load_patterns = self.graphics_settings.get('visible_load_patterns', [])
+
+                    self.update_graphics_settings(self.graphics_settings)
 
                 if hasattr(self.model, 'saved_unit_system'):
                     self.combo_units.blockSignals(True)
@@ -640,6 +644,10 @@ class MainWindow(QMainWindow):
                 self.graphics_settings['show_supports'] = self.canvas.show_supports
                 self.graphics_settings['show_loads'] = self.canvas.show_loads
                 self.graphics_settings['show_local_axes'] = self.canvas.show_local_axes
+                self.graphics_settings['show_constraints'] = self.canvas.show_constraints
+                self.graphics_settings['show_releases'] = self.canvas.show_releases
+                self.graphics_settings['load_type_filter'] = self.canvas.load_type_filter
+                self.graphics_settings['visible_load_patterns'] = self.canvas.visible_load_patterns
                 self.model.graphics_settings = self.graphics_settings
 
                 self.model.save_to_file(filename)
